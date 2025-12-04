@@ -344,12 +344,12 @@ export default function DashboardPage() {
           </div>
 
           {/* My Businesses Section */}
-          <div className="bg-[#2a2a2a] rounded-xl p-6 border border-white/10">
-            <div className="flex justify-between items-center mb-6">
-              <div className="text-xl font-bold text-white">My Businesses</div>
+          <div className="bg-[#2a2a2a] rounded-xl p-4 sm:p-6 border border-white/10 overflow-x-hidden">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 sm:mb-6">
+              <div className="text-lg sm:text-xl font-bold text-white">My Businesses</div>
               <button
                 onClick={() => router.push('/businesses/new')}
-                className="px-4 py-2 bg-gradient-to-r from-[#6ab8d8] to-[#4a9bc7] hover:from-[#5aa8c8] hover:to-[#3a8bb7] text-white rounded-lg font-medium transition-all flex items-center gap-2 shadow-lg hover:shadow-xl"
+                className="px-4 py-2 bg-gradient-to-r from-[#6ab8d8] to-[#4a9bc7] hover:from-[#5aa8c8] hover:to-[#3a8bb7] text-white rounded-lg font-medium transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl text-sm sm:text-base w-full sm:w-auto"
               >
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
                   <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
@@ -378,13 +378,13 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-4">
                 {businesses.map((business) => (
-                  <div key={business.id} className="border border-white/10 rounded-lg p-4 hover:border-[#6ab8d8]/50 transition-colors bg-[#1a1a1a]">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-semibold text-white">{business.name}</h3>
+                  <div key={business.id} className="border border-white/10 rounded-lg p-4 sm:p-5 hover:border-[#6ab8d8]/50 transition-colors bg-[#1a1a1a]">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+                          <h3 className="text-base sm:text-lg font-semibold text-white break-words">{business.name}</h3>
                           {business.isVerified && (
-                            <span className="px-2 py-1 bg-green-500/10 text-green-400 rounded-full text-xs font-semibold flex items-center gap-1 border border-green-500/20">
+                            <span className="px-2 py-1 bg-green-500/10 text-green-400 rounded-full text-xs font-semibold flex items-center gap-1 border border-green-500/20 whitespace-nowrap">
                               <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                               </svg>
@@ -392,44 +392,44 @@ export default function DashboardPage() {
                             </span>
                           )}
                           {!business.isVerified && (
-                            <span className="px-2 py-1 bg-yellow-500/10 text-yellow-400 rounded-full text-xs font-semibold border border-yellow-500/20">
+                            <span className="px-2 py-1 bg-yellow-500/10 text-yellow-400 rounded-full text-xs font-semibold border border-yellow-500/20 whitespace-nowrap">
                               Pending Verification
                             </span>
                           )}
                         </div>
-                        <p className="text-sm text-white/80 mb-2">{business.category} • {business.barangay}</p>
-                        <p className="text-sm text-white/60 line-clamp-2">{business.description}</p>
+                        <p className="text-xs sm:text-sm text-white/80 mb-2 break-words">{business.category} • {business.barangay}</p>
+                        <p className="text-xs sm:text-sm text-white/60 line-clamp-2 break-words">{business.description}</p>
                       </div>
-                      <div className="flex items-center gap-2 ml-4">
+                      <div className="flex flex-wrap items-center gap-2 sm:ml-4 sm:flex-nowrap">
                         <button
                           onClick={() => handleViewBusiness(business.id)}
-                          className="px-3 py-1.5 text-sm bg-[#6ab8d8]/20 hover:bg-[#6ab8d8]/30 text-[#6ab8d8] rounded-lg transition-colors"
+                          className="flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-sm bg-[#6ab8d8]/20 hover:bg-[#6ab8d8]/30 text-[#6ab8d8] rounded-lg transition-colors whitespace-nowrap"
                         >
                           View
                         </button>
                         <button
                           onClick={() => handleEditBusiness(business.id)}
-                          className="px-3 py-1.5 text-sm bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+                          className="flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-sm bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors whitespace-nowrap"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => handleDeleteBusiness(business.id)}
                           disabled={deletingBusiness === business.id}
-                          className="px-3 py-1.5 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                          className="flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 whitespace-nowrap"
                           title="Delete business"
                         >
                           {deletingBusiness === business.id ? (
                             <>
                               <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-400"></div>
-                              <span>Deleting...</span>
+                              <span className="hidden sm:inline">Deleting...</span>
                             </>
                           ) : (
                             <>
                               <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                                 <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
                               </svg>
-                              Delete
+                              <span className="hidden sm:inline">Delete</span>
                             </>
                           )}
                         </button>
