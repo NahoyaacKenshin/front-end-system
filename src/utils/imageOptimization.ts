@@ -103,7 +103,7 @@ export async function optimizeImage(
         ctx.drawImage(img, 0, 0, width, height);
 
         // Convert to base64 with compression
-        let quality = standard.quality;
+        let quality: number = standard.quality;
         let base64 = canvas.toDataURL('image/jpeg', quality);
 
         // If still too large, reduce quality further
