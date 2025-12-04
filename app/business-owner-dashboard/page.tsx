@@ -163,7 +163,7 @@ export default function DashboardPage() {
   };
 
   const handleEditBusiness = (businessId: number) => {
-    router.push(`/businesses/${businessId}/edit`);
+    router.push(`/business/${businessId}`);
   };
 
   const handleDeleteBusiness = async (businessId: number) => {
