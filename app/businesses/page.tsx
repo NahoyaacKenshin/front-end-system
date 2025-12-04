@@ -86,7 +86,7 @@ export default function BusinessesPage() {
       const response = await api.getUserFavorites();
       if (response.success && response.data) {
         const favorites = Array.isArray(response.data) ? response.data : (response.data.favorites || []);
-        const favoriteIds = new Set(favorites.map((fav: any) => fav.businessId || fav.business?.id).filter(Boolean));
+        const favoriteIds = new Set<number>(favorites.map((fav: any) => fav.businessId || fav.business?.id).filter(Boolean));
         setFavoriteBusinessIds(favoriteIds);
       }
     } catch (error) {
