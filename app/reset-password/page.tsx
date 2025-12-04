@@ -1,11 +1,15 @@
 'use client';
 
-import React, { useState, FormEvent, useEffect } from 'react';
+// 1. Force this page to be dynamic (skips static generation)
+export const dynamic = 'force-dynamic';
+
+import React, { useState, FormEvent, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '../../src/services/api';
 
-export default function ResetPassword() {
+// 2. The component containing the logic (using useSearchParams)
+function ResetPasswordContent() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -14,6 +18,7 @@ export default function ResetPassword() {
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
 
@@ -212,3 +217,15 @@ export default function ResetPassword() {
   );
 }
 
+// 3. Main export wrapped in Suspense
+export default function ResetPassword() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="text-xl text-[#1e3c72]">Loading...</div>
+      </div>
+    }>
+      <ResetPasswordContent />
+    </Suspense>
+  );
+}
