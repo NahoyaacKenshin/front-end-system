@@ -99,7 +99,7 @@ export default function MyBusinessesPage() {
   }, [user, router]);
 
   const handleViewBusiness = (id: number) => {
-    router.push(`/business/${id}`);
+    router.push(`/business/${id}?mode=view`);
   };
 
   const handleEditBusiness = (id: number) => {

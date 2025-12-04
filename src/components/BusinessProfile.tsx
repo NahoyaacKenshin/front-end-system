@@ -11,6 +11,7 @@ import SimpleMapPicker from './SimpleMapPicker';
 
 interface BusinessProfileProps {
   businessId?: string;
+  readOnly?: boolean;
 }
 
 interface ContactInfo {
@@ -25,7 +26,7 @@ interface Socials {
   website?: string;
 }
 
-export default function BusinessProfile({ businessId }: BusinessProfileProps) {
+export default function BusinessProfile({ businessId, readOnly = false }: BusinessProfileProps) {
   const router = useRouter();
   const { user } = useAuth();
   const [business, setBusiness] = useState<Business | null>(null);
@@ -799,8 +800,8 @@ export default function BusinessProfile({ businessId }: BusinessProfileProps) {
   };
 
   const isOwner = user && business && user.id === business.ownerId;
-  // Only owners can edit (not admins)
-  const canEdit = isOwner;
+  // Only owners can edit (not admins), and only if not in read-only mode
+  const canEdit = isOwner && !readOnly;
 
   if (loading) {
     return (
