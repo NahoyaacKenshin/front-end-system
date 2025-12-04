@@ -1,10 +1,6 @@
 'use client';
 
-<<<<<<< HEAD
-import React, { useState, useEffect, FormEvent, useRef } from 'react';
-=======
-import React, { useState, useEffect, FormEvent, Suspense } from 'react';
->>>>>>> e9e6f7b6129bca87d0d0214afcef4d231ccc40a5
+import React, { useState, useEffect, FormEvent, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { api } from '../../src/services/api';
