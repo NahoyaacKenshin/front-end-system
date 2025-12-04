@@ -60,7 +60,8 @@ export async function optimizeImage(
         }
 
         // Calculate dimensions maintaining aspect ratio
-        let { width, height } = standard;
+        let width: number = standard.width;
+        let height: number = standard.height;
         const aspectRatio = img.width / img.height;
 
         if (type === 'LOGO' || type === 'GALLERY') {
