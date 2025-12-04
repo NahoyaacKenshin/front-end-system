@@ -15,6 +15,7 @@ interface SimpleMapPickerProps {
   onLocationSelect: (lat: number, lng: number) => void;
   height?: string;
   disabled?: boolean;
+  address: string;
 }
 
 export default function SimpleMapPicker({
@@ -29,28 +30,29 @@ export default function SimpleMapPicker({
   const markerRef = useRef<any>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // --- CONFIGURATION FOR CEBU CITY / CORDOVA ---
-  const CEBU_BOUNDS_OPTS = {
-    minLat: 10.1500, // South (Naga/Minglanilla)
-    maxLat: 10.4500, // North (Liloan)
-    minLng: 123.7500, // West (Busay mountains)
-    maxLng: 124.0500, // East (Olango/Cordova)
+  // --- CONFIGURATION FOR MACTAN ISLAND & CORDOVA ONLY ---
+  const ISLAND_BOUNDS_OPTS = {
+    minLat: 10.2300,  // South: Tip of Cordova
+    maxLat: 10.3600,  // North: Tip of Punta Engaño / Airport
+    minLng: 123.9300, // West: The Bridges / Mandaue Channel
+    maxLng: 124.0600, // East: The sea past Maribago
   };
 
-  const CEBU_BOUNDS: [[number, number], [number, number]] = [
-    [CEBU_BOUNDS_OPTS.minLat, CEBU_BOUNDS_OPTS.minLng],
-    [CEBU_BOUNDS_OPTS.maxLat, CEBU_BOUNDS_OPTS.maxLng],
+  const ISLAND_BOUNDS: [[number, number], [number, number]] = [
+    [ISLAND_BOUNDS_OPTS.minLat, ISLAND_BOUNDS_OPTS.minLng],
+    [ISLAND_BOUNDS_OPTS.maxLat, ISLAND_BOUNDS_OPTS.maxLng],
   ];
 
-  const DEFAULT_CENTER: [number, number] = [10.3157, 123.8854]; // Cebu City Capitol area
+  // Default Center: Basak/Marigondon area (Center of the island)
+  const DEFAULT_CENTER: [number, number] = [10.2929, 123.9750]; 
 
   // Helper to check if a coordinate is valid within our specific region
-  const isWithinCebu = (latitude: number, longitude: number) => {
+  const isWithinBounds = (latitude: number, longitude: number) => {
     return (
-      latitude >= CEBU_BOUNDS_OPTS.minLat &&
-      latitude <= CEBU_BOUNDS_OPTS.maxLat &&
-      longitude >= CEBU_BOUNDS_OPTS.minLng &&
-      longitude <= CEBU_BOUNDS_OPTS.maxLng
+      latitude >= ISLAND_BOUNDS_OPTS.minLat &&
+      latitude <= ISLAND_BOUNDS_OPTS.maxLat &&
+      longitude >= ISLAND_BOUNDS_OPTS.minLng &&
+      longitude <= ISLAND_BOUNDS_OPTS.maxLng
     );
   };
 
@@ -76,33 +78,28 @@ export default function SimpleMapPicker({
   useEffect(() => {
     if (!isLoaded || !mapRef.current || !window.L) return;
 
-    // --- CRITICAL FIX: DESTROY OLD MAP ---
-    // If a map instance already exists, remove it before creating a new one.
-    // This ensures the new settings (bounds/zoom) are actually applied.
+    // Destroy old map to apply new bounds cleanly
     if (mapInstanceRef.current) {
       mapInstanceRef.current.remove();
       mapInstanceRef.current = null;
     }
 
-    // --- CRITICAL FIX: VALIDATE COORDINATES ---
-    // If the prop `lat` is passed as 14.5 (Manila), we IGNORE it.
-    // We only use the prop if it is actually inside Cebu.
     let startLat = DEFAULT_CENTER[0];
     let startLng = DEFAULT_CENTER[1];
 
-    if (lat && lng && isWithinCebu(lat, lng)) {
+    // Only use props if they are inside Mactan/Cordova
+    if (lat && lng && isWithinBounds(lat, lng)) {
       startLat = lat;
       startLng = lng;
     }
 
-    // Create Map
     const map = window.L.map(mapRef.current, {
       center: [startLat, startLng],
       zoom: 13,
-      minZoom: 12,
+      minZoom: 12, // Prevents zooming out to see Cebu City mainland
       maxZoom: 18,
-      maxBounds: CEBU_BOUNDS,
-      maxBoundsViscosity: 1.0,
+      maxBounds: ISLAND_BOUNDS, // LOCKS view to the island
+      maxBoundsViscosity: 1.0,  // Hard stop at edges
     });
 
     window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -111,8 +108,8 @@ export default function SimpleMapPicker({
 
     mapInstanceRef.current = map;
 
-    // Place Initial Marker (only if we have valid coordinates)
-    if (lat && lng && isWithinCebu(lat, lng)) {
+    // Place Marker
+    if (lat && lng && isWithinBounds(lat, lng)) {
       const marker = window.L.marker([lat, lng], { draggable: !disabled }).addTo(map);
       markerRef.current = marker;
 
@@ -127,8 +124,8 @@ export default function SimpleMapPicker({
       map.on('click', (e: any) => {
         const { lat, lng } = e.latlng;
         
-        // Double check bounds just in case
-        if (!isWithinCebu(lat, lng)) return;
+        // Strict check: If user clicks water outside bounds, do nothing
+        if (!isWithinBounds(lat, lng)) return;
 
         if (markerRef.current) map.removeLayer(markerRef.current);
 
@@ -136,7 +133,7 @@ export default function SimpleMapPicker({
         markerRef.current = marker;
         
         onLocationSelect(lat, lng);
-        map.flyTo([lat, lng], map.getZoom()); // Smooth animate to click
+        map.flyTo([lat, lng], map.getZoom());
 
         marker.on('dragend', () => {
             const { lat, lng } = marker.getLatLng();
@@ -145,7 +142,6 @@ export default function SimpleMapPicker({
       });
     }
 
-  // Add lat/lng to dependency array so map re-centers if props change VALIDLY
   }, [isLoaded, disabled, lat, lng]); 
 
   if (!isLoaded) {
@@ -165,7 +161,7 @@ export default function SimpleMapPicker({
       />
       {!disabled && (
         <div className="absolute bottom-2 right-2 z-[400] bg-black/70 px-2 py-1 rounded text-xs text-white">
-          Cebu/Cordova Only
+          Lapu-Lapu & Cordova Only
         </div>
       )}
     </div>
