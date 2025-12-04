@@ -160,7 +160,7 @@ export default function MyBusinessesPage() {
 
         {/* Loading State */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
             {[1, 2, 3].map((i) => (
               <div key={i} className="bg-[#2a2a2a] rounded-xl p-6 border border-white/10 animate-pulse">
                 <div className="h-48 bg-white/10 rounded-lg mb-4"></div>
@@ -189,7 +189,7 @@ export default function MyBusinessesPage() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
             {businesses.map((business) => (
               <div
                 key={business.id}

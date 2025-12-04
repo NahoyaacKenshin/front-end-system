@@ -204,7 +204,7 @@ export default function HomePage() {
     <div className="min-h-screen flex flex-col">
       <Navbar />
 
-      <div ref={heroRef} id="hero-section" className="min-h-[60vh] flex items-center justify-center pt-[120px] pb-[60px] px-5 text-white relative overflow-hidden">
+      <div ref={heroRef} id="hero-section" className="min-h-[50vh] sm:min-h-[60vh] flex items-center justify-center pt-[100px] sm:pt-[120px] pb-[40px] sm:pb-[60px] px-4 sm:px-5 text-white relative overflow-hidden">
         <img src="/Parola.jpg" alt="Background" className="absolute top-0 left-0 w-full h-full object-cover brightness-[0.6] z-0" />
         <div className="max-w-[900px] w-full text-center relative z-10">
           <h1 className={`text-6xl md:text-5xl sm:text-4xl font-bold mb-5 tracking-[4px] drop-shadow-[0_2px_10px_rgba(0,0,0,0.3)] transition-all duration-800 ${visibleElements.has('hero-section') ? 'animate-fade-in-down opacity-100' : 'opacity-0'}`} style={{ animationDelay: '0.2s' }}>EXPLORE CORDOVA</h1>
@@ -214,7 +214,7 @@ export default function HomePage() {
           
           <form ref={searchRef} id="search-form" className={`max-w-[800px] mx-auto transition-all duration-800 ${visibleElements.has('search-form') ? 'animate-fade-in-scale opacity-100' : 'opacity-0'}`} style={{ animationDelay: '0.6s' }} onSubmit={handleSearch}>
             <div className="relative bg-white/80 backdrop-blur-md rounded-[30px] shadow-[0_10px_40px_rgba(0,0,0,0.2)] overflow-visible border border-white/30">
-              <div className="flex items-center gap-4 px-6 py-5">
+              <div className="flex items-center gap-2 sm:gap-4 px-4 sm:px-6 py-3 sm:py-5">
                 <svg 
                   className="text-[#1e3c72] flex-shrink-0"
                   viewBox="0 0 24 24" 
@@ -283,13 +283,13 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div ref={sectionRef} id="category-section" className="py-20 px-[60px] md:px-8 sm:px-5 bg-[#1a1a1a] flex-1">
+      <div ref={sectionRef} id="category-section" className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 md:px-8 lg:px-[60px] bg-[#1a1a1a] flex-1">
         <div className={`mb-12 pb-5 border-b border-gray-700 transition-all duration-800 ${visibleElements.has('category-section') ? 'animate-fade-in-up opacity-100' : 'opacity-0'}`} style={{ animationDelay: '0.2s' }}>
           <h2 className="text-white text-4xl sm:text-2xl font-bold tracking-[2px]">EXPLORE BY CATEGORY</h2>
           <p className="text-white/80 text-xl mt-2 font-light">Discover the best of Cordova through our curated categories</p>
         </div>
 
-        <div className="relative max-w-[1400px] mx-auto px-4 sm:px-6 md:px-8">
+        <div className="relative max-w-[1400px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8">
           {/* Slider Container */}
           <div 
             className="relative overflow-hidden"
@@ -303,7 +303,7 @@ export default function HomePage() {
               }}
             >
               {Array.from({ length: totalSlides }).map((_, slideIndex) => (
-                <div key={slideIndex} className="flex-shrink-0 w-full flex gap-4 sm:gap-6">
+                <div key={slideIndex} className="flex-shrink-0 w-full flex gap-2 sm:gap-4 md:gap-6">
                   {categories.slice(slideIndex * itemsPerSlide, slideIndex * itemsPerSlide + itemsPerSlide).map((category, cardIndex) => {
                     const index = slideIndex * itemsPerSlide + cardIndex;
                     const cardId = `category-card-${index}`;

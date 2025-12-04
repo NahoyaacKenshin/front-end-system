@@ -83,7 +83,7 @@ export default function RegisterPage() {
         </div>
       </div>
       <div className="flex-1 bg-gray-50 flex flex-col p-10 overflow-y-visible overflow-x-hidden justify-start min-h-screen md:p-[30px_20px]">
-        <div className="flex items-center gap-4 mb-[60px]">
+        <div className="flex items-center gap-4 mb-8 sm:mb-12 md:mb-[60px]">
           <img src="logo.jpg" alt="Logo" className="w-12 h-12 rounded-full bg-gradient-to-br from-[#1e3c72] to-[#2a5298]" />
           <h3 className="text-2xl text-[#1e3c72] font-semibold">LOCAFY</h3>
         </div>

@@ -316,7 +316,7 @@ function BusinessesContent() {
       <Navbar />
 
       {/* Search Bar Section with Background Image */}
-      <div className="pt-[120px] pb-[60px] px-5 text-white relative overflow-hidden">
+      <div className="pt-[100px] sm:pt-[120px] pb-[40px] sm:pb-[60px] px-4 sm:px-5 text-white relative overflow-hidden">
         {/* Background Image */}
         <div className="absolute inset-0 z-0">
           <img 
@@ -337,7 +337,7 @@ function BusinessesContent() {
           
           <form className="max-w-[800px] mx-auto" onSubmit={handleSearch}>
             <div className="relative bg-white/80 backdrop-blur-md rounded-[30px] shadow-[0_10px_40px_rgba(0,0,0,0.2)] overflow-visible border border-white/30">
-              <div className="flex items-center gap-4 px-6 py-5">
+              <div className="flex items-center gap-2 sm:gap-4 px-4 sm:px-6 py-3 sm:py-5">
                 <svg 
                   className="text-[#1e3c72] flex-shrink-0"
                   viewBox="0 0 24 24" 
@@ -408,7 +408,7 @@ function BusinessesContent() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col lg:flex-row gap-8 px-6 md:px-4 pt-12 pb-12 max-w-[1600px] mx-auto w-full bg-[#1a1a1a]">
+      <div className="flex-1 flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8 px-4 sm:px-6 md:px-8 pt-8 sm:pt-10 md:pt-12 pb-8 sm:pb-10 md:pb-12 max-w-[1600px] mx-auto w-full bg-[#1a1a1a]">
         {/* Mobile Filters - Horizontal Dropdowns */}
         <div className="lg:hidden flex flex-wrap gap-3 mb-4">
           {/* Category Dropdown */}
@@ -880,7 +880,7 @@ function BusinessesContent() {
               </div>
 
               {/* 3x2 Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6 mb-6 sm:mb-8">
                 {getCurrentPageBusinesses().map((business) => (
                   <div
                     key={business.id}

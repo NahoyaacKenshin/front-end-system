@@ -714,48 +714,20 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
   const handleGetDirections = () => {
     if (!business) return;
 
+    // Open Google Maps immediately to avoid pop-up blockers
     // If coordinates are available, use them for accurate directions
     if (business.lat && business.lng) {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const userLat = position.coords.latitude;
-            const userLng = position.coords.longitude;
-            const destLat = business.lat!;
-            const destLng = business.lng!;
-            
-            // Turn-by-turn directions from user location to business
-            window.open(
-              `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLng}&destination=${destLat},${destLng}&travelmode=driving`,
-              '_blank'
-            );
-          },
-          (error) => {
-            console.error('Error getting user location:', error);
-            // Directions to destination only (user location not available)
-            window.open(
-              `https://www.google.com/maps/dir/?api=1&destination=${business.lat},${business.lng}&travelmode=driving`,
-              '_blank'
-            );
-          }
-        );
-      } else {
-        // Browser doesn't support geolocation
-        window.open(
-          `https://www.google.com/maps/dir/?api=1&destination=${business.lat},${business.lng}&travelmode=driving`,
-          '_blank'
-        );
-      }
+      // Open with destination - Google Maps will ask for user location if needed
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${business.lat},${business.lng}&travelmode=driving`;
+      window.open(url, '_blank', 'noopener,noreferrer');
     } else {
       // Fallback to address-based search if coordinates aren't available
       const searchQuery = business.location 
         ? `${business.location}, ${business.barangay}, Philippines`
         : business.name;
       
-      window.open(
-        `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchQuery)}`,
-        '_blank'
-      );
+      const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchQuery)}`;
+      window.open(url, '_blank', 'noopener,noreferrer');
     }
   };
 
