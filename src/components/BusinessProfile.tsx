@@ -6,6 +6,8 @@ import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import type { Business, Discussion } from '../types';
 import Navbar from './Layout/Navbar';
+import { optimizeImage, fileToBase64 } from '../utils/imageOptimization';
+import SimpleMapPicker from './SimpleMapPicker';
 
 interface BusinessProfileProps {
   businessId?: string;
@@ -37,10 +39,27 @@ export default function BusinessProfile({ businessId }: BusinessProfileProps) {
   const [newDiscussionContent, setNewDiscussionContent] = useState('');
   const [submittingDiscussion, setSubmittingDiscussion] = useState(false);
   const [galleryUploading, setGalleryUploading] = useState(false);
+  const [galleryModalOpen, setGalleryModalOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [replyContent, setReplyContent] = useState<{ [key: number]: string }>({});
   const [submittingReply, setSubmittingReply] = useState<{ [key: number]: boolean }>({});
   const [expandedReplies, setExpandedReplies] = useState<{ [key: number]: boolean }>({});
+  
+  // Edit mode states
+  const [editingSection, setEditingSection] = useState<string | null>(null);
+  const [editDescription, setEditDescription] = useState('');
+  const [editContactInfo, setEditContactInfo] = useState<ContactInfo>({});
+  const [editSocials, setEditSocials] = useState<Socials>({});
+  const [editLocation, setEditLocation] = useState('');
+  const [editLat, setEditLat] = useState<number | null>(null);
+  const [editLng, setEditLng] = useState<number | null>(null);
+  const [editStoreHours, setEditStoreHours] = useState<{ [key: string]: { open: string; close: string } }>({});
+  const [saving, setSaving] = useState(false);
+  const [uploadingCoverPhoto, setUploadingCoverPhoto] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  // Convert file to base64
 
   useEffect(() => {
     if (!businessId) {
@@ -64,7 +83,9 @@ export default function BusinessProfile({ businessId }: BusinessProfileProps) {
         const response = await api.getBusinessById(id);
         
         if (response.success && response.data) {
-          setBusiness(response.data as Business);
+          const businessData = response.data as Business;
+          console.log('Business loaded:', { id: businessData.id, name: businessData.name, logo: businessData.logo });
+          setBusiness(businessData);
           
           // Fetch favorite count for all users (including guests)
           try {
@@ -96,7 +117,27 @@ export default function BusinessProfile({ businessId }: BusinessProfileProps) {
         }
       } catch (err: any) {
         console.error('Error fetching business:', err);
-        setError(err.response?.data?.message || err.message || 'Failed to load business');
+        console.error('Error details:', {
+          message: err.message,
+          code: err.code,
+          response: err.response?.data,
+          status: err.response?.status,
+          url: err.config?.url
+        });
+        // Provide more detailed error messages
+        if (err.code === 'ECONNREFUSED' || err.message?.includes('Network Error') || err.message?.includes('ERR_CONNECTION_REFUSED')) {
+          setError('Cannot connect to server. Please make sure the backend is running on http://localhost:7000');
+        } else if (err.response?.status === 404) {
+          setError('Business not found');
+        } else if (err.response?.status === 403) {
+          setError(err.response?.data?.message || 'You do not have permission to view this business');
+        } else if (err.response?.status === 500) {
+          setError('Server error. Please try again later.');
+        } else if (err.response?.status === 400) {
+          setError(err.response?.data?.message || 'Invalid business ID');
+        } else {
+          setError(err.response?.data?.message || err.message || 'Failed to load business. Please check your connection.');
+        }
       } finally {
         setLoading(false);
       }
@@ -346,6 +387,130 @@ export default function BusinessProfile({ businessId }: BusinessProfileProps) {
     );
   };
 
+  // Start editing a section
+  const startEditing = (section: string) => {
+    if (!business) return;
+    
+    setEditingSection(section);
+    
+    if (section === 'description') {
+      setEditDescription(business.description);
+    } else     if (section === 'contact') {
+      const contactInfo = parseContactInfo(business.contactInfo);
+      setEditContactInfo(contactInfo);
+      const socials = parseSocials(business.socials);
+      setEditSocials(socials);
+      setEditLocation(business.location || '');
+      setEditLat(business.lat || null);
+      setEditLng(business.lng || null);
+    } else if (section === 'storeHours') {
+      try {
+        const hours = business.openTime ? JSON.parse(business.openTime) : {};
+        setEditStoreHours(hours);
+      } catch {
+        setEditStoreHours({});
+      }
+    }
+  };
+
+  // Cancel editing
+  const cancelEditing = () => {
+    setEditingSection(null);
+    setEditDescription('');
+    setEditContactInfo({});
+    setEditSocials({});
+    setEditLocation('');
+    setEditLat(null);
+    setEditLng(null);
+    setEditStoreHours({});
+  };
+
+  // Save business updates
+  const saveBusinessUpdate = async (updates: any) => {
+    if (!business) return;
+    
+    try {
+      setSaving(true);
+      const response = await api.updateBusiness(business.id, updates);
+      
+      if (response.success && response.data) {
+        const updatedBusiness = response.data as Business;
+        console.log('Business updated:', { id: updatedBusiness.id, logo: updatedBusiness.logo, coverPhoto: updatedBusiness.coverPhoto });
+        setBusiness(updatedBusiness);
+        setEditingSection(null);
+      } else {
+        alert(response.message || 'Failed to update business');
+      }
+    } catch (err: any) {
+      console.error('Error updating business:', err);
+      alert(err.response?.data?.message || err.message || 'Failed to update business');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Handle cover photo upload
+  const handleCoverPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!business || !canEdit) return;
+    
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Cover photo must be less than 5MB');
+      return;
+    }
+
+    try {
+      setUploadingCoverPhoto(true);
+      const base64 = await optimizeImage(file, 'COVER_PHOTO');
+      await saveBusinessUpdate({ coverPhoto: base64 });
+    } catch (err) {
+      console.error('Error uploading cover photo:', err);
+      alert('Failed to upload cover photo');
+    } finally {
+      setUploadingCoverPhoto(false);
+      e.target.value = '';
+    }
+  };
+
+  // Handle logo upload
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!business || !canEdit) {
+      console.log('Cannot upload logo:', { business: !!business, canEdit });
+      return;
+    }
+    
+    const file = e.target.files?.[0];
+    if (!file) {
+      console.log('No file selected');
+      return;
+    }
+
+    console.log('Logo upload started:', { fileName: file.name, fileSize: file.size });
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Logo must be less than 5MB');
+      return;
+    }
+
+    try {
+      setUploadingLogo(true);
+      console.log('Optimizing and converting logo...');
+      const base64 = await optimizeImage(file, 'LOGO');
+      console.log('Logo optimization complete, updating business...');
+      await saveBusinessUpdate({ logo: base64 });
+      console.log('Logo update successful');
+    } catch (err) {
+      console.error('Error uploading logo:', err);
+      alert('Failed to upload logo: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    } finally {
+      setUploadingLogo(false);
+      e.target.value = '';
+    }
+  };
+
+  // Handle gallery upload
   const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!business || !canEdit) return;
     
@@ -354,20 +519,131 @@ export default function BusinessProfile({ businessId }: BusinessProfileProps) {
 
     try {
       setGalleryUploading(true);
-      // Note: This assumes the API accepts gallery updates via updateBusiness
-      // You may need to adjust this based on your actual API implementation
       const currentGallery = business.gallery || [];
-      // For now, we'll just show a message - actual file upload would require
-      // a file upload endpoint or FormData handling
-      alert('Gallery upload functionality requires file upload API endpoint. Please use the edit page to update gallery.');
+      const newImages: string[] = [];
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file.size > 5 * 1024 * 1024) {
+          alert(`${file.name} is too large. Maximum size is 5MB`);
+          continue;
+        }
+        const base64 = await optimizeImage(file, 'GALLERY');
+        newImages.push(base64);
+      }
+      
+      if (newImages.length > 0) {
+        await saveBusinessUpdate({ gallery: [...currentGallery, ...newImages] });
+      }
     } catch (err) {
       console.error('Error uploading gallery:', err);
       alert('Failed to upload gallery images');
     } finally {
       setGalleryUploading(false);
-      // Reset input
       e.target.value = '';
     }
+  };
+
+  // Handle gallery modal
+  const handleOpenGalleryModal = (index: number) => {
+    setCurrentImageIndex(index);
+    setGalleryModalOpen(true);
+  };
+
+  const handleCloseGalleryModal = () => {
+    setGalleryModalOpen(false);
+  };
+
+  const handleNextImage = () => {
+    if (business?.gallery && business.gallery.length > 0) {
+      setCurrentImageIndex((prev) => (prev + 1) % business.gallery.length);
+    }
+  };
+
+  const handlePrevImage = () => {
+    if (business?.gallery && business.gallery.length > 0) {
+      setCurrentImageIndex((prev) => (prev - 1 + business.gallery.length) % business.gallery.length);
+    }
+  };
+
+  const handleGoToImage = (index: number) => {
+    setCurrentImageIndex(index);
+  };
+
+  // Handle keyboard navigation
+  useEffect(() => {
+    if (!galleryModalOpen || !business?.gallery || business.gallery.length === 0) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        setCurrentImageIndex((prev) => (prev - 1 + business.gallery.length) % business.gallery.length);
+      } else if (e.key === 'ArrowRight') {
+        setCurrentImageIndex((prev) => (prev + 1) % business.gallery.length);
+      } else if (e.key === 'Escape') {
+        setGalleryModalOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [galleryModalOpen, business?.gallery]);
+
+  // Handle gallery image deletion
+  const handleDeleteGalleryImage = async (index: number) => {
+    if (!business || !canEdit) return;
+    
+    if (!confirm('Delete this photo?')) return;
+    
+    try {
+      const currentGallery = business.gallery || [];
+      const newGallery = currentGallery.filter((_, i) => i !== index);
+      await saveBusinessUpdate({ gallery: newGallery });
+    } catch (err) {
+      console.error('Error deleting gallery image:', err);
+      alert('Failed to delete photo');
+    }
+  };
+
+  // Save description
+  const handleSaveDescription = async () => {
+    if (!business) return;
+    await saveBusinessUpdate({ description: editDescription });
+  };
+
+  // Handle map location selection
+  const handleMapLocationSelect = (lat: number, lng: number) => {
+    setEditLat(lat);
+    setEditLng(lng);
+  };
+
+  // Save contact info, location, and socials
+  const handleSaveContact = async () => {
+    if (!business) return;
+    
+    const contactInfoString = Object.keys(editContactInfo).length > 0 
+      ? JSON.stringify(editContactInfo) 
+      : null;
+    
+    const socialsObj = Object.keys(editSocials).length > 0 ? editSocials : null;
+    
+    await saveBusinessUpdate({ 
+      contactInfo: contactInfoString,
+      socials: socialsObj,
+      location: editLocation.trim() || business.location,
+      lat: editLat,
+      lng: editLng
+    });
+  };
+
+  // Save store hours
+  const handleSaveStoreHours = async () => {
+    if (!business) return;
+    
+    const storeHoursString = Object.keys(editStoreHours).length > 0 
+      ? JSON.stringify(editStoreHours) 
+      : null;
+    
+    await saveBusinessUpdate({ openTime: storeHoursString });
   };
 
   const formatDate = (dateString: string | Date): string => {
@@ -426,47 +702,53 @@ export default function BusinessProfile({ businessId }: BusinessProfileProps) {
   };
 
   const handleGetDirections = () => {
-    if (!business || !business.lat || !business.lng) {
-      window.open(
-        `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business?.location || '')}`,
-        '_blank'
-      );
-      return;
-    }
-
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const userLat = position.coords.latitude;
-          const userLng = position.coords.longitude;
-          const destLat = business.lat!;
-          const destLng = business.lng!;
-          
-          window.open(
-            `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLng}&destination=${destLat},${destLng}`,
-            '_blank'
-          );
-        },
-        (error) => {
-          console.error('Error getting location:', error);
-          window.open(
-            `https://www.google.com/maps/dir/?api=1&destination=${business.lat},${business.lng}`,
-            '_blank'
-          );
-        }
-      );
-    } else {
-      window.open(
-        `https://www.google.com/maps/dir/?api=1&destination=${business.lat},${business.lng}`,
-        '_blank'
-      );
-    }
-  };
-
-  const handleEditDetails = () => {
     if (!business) return;
-    router.push(`/businesses/${business.id}/edit`);
+
+    // If coordinates are available, use them for accurate directions
+    if (business.lat && business.lng) {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const userLat = position.coords.latitude;
+            const userLng = position.coords.longitude;
+            const destLat = business.lat!;
+            const destLng = business.lng!;
+            
+            // Turn-by-turn directions from user location to business
+            window.open(
+              `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLng}&destination=${destLat},${destLng}&travelmode=driving`,
+              '_blank'
+            );
+          },
+          (error) => {
+            console.error('Error getting user location:', error);
+            // Directions to destination only (user location not available)
+            window.open(
+              `https://www.google.com/maps/dir/?api=1&destination=${business.lat},${business.lng}&travelmode=driving`,
+              '_blank'
+            );
+          }
+        );
+      } else {
+        // Browser doesn't support geolocation
+        window.open(
+          `https://www.google.com/maps/dir/?api=1&destination=${business.lat},${business.lng}&travelmode=driving`,
+          '_blank'
+        );
+      }
+    } else {
+      // Fallback to address-based search if coordinates aren't available
+      const searchQuery = business.location 
+        ? `${business.location}, ${business.barangay}, Philippines`
+        : business.name;
+      
+      window.open(
+        `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchQuery)}`,
+        '_blank'
+      );
+    }
   };
+
 
   const parseContactInfo = (contactInfo: string | null | undefined): ContactInfo => {
     if (!contactInfo) return {};
@@ -517,8 +799,8 @@ export default function BusinessProfile({ businessId }: BusinessProfileProps) {
   };
 
   const isOwner = user && business && user.id === business.ownerId;
-  const isAdmin = user?.role === 'ADMIN';
-  const canEdit = isOwner || isAdmin;
+  // Only owners can edit (not admins)
+  const canEdit = isOwner;
 
   if (loading) {
     return (
@@ -566,7 +848,7 @@ export default function BusinessProfile({ businessId }: BusinessProfileProps) {
       <Navbar />
       
       {/* Banner Image */}
-      <div className="relative h-[300px] sm:h-[400px] overflow-hidden">
+      <div className="relative h-[400px] overflow-hidden group">
         {business.coverPhoto ? (
           <img 
             src={business.coverPhoto} 
@@ -576,40 +858,84 @@ export default function BusinessProfile({ businessId }: BusinessProfileProps) {
         ) : (
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-[#1e3c72] to-[#2a5298]"></div>
         )}
+        {canEdit && (
+          <label className="absolute bottom-20 right-4 sm:bottom-24 md:bottom-28 px-4 py-2 bg-black/70 hover:bg-black/90 backdrop-blur-sm text-white rounded-lg font-medium cursor-pointer transition-all z-10 flex items-center gap-2">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+            </svg>
+            {uploadingCoverPhoto ? 'Uploading...' : 'Change Cover Photo'}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleCoverPhotoUpload}
+              disabled={uploadingCoverPhoto}
+              style={{ display: 'none' }}
+            />
+          </label>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-black/20">
           {/* Main Info - Bottom Left */}
           <div className="absolute bottom-0 left-0 right-0">
             <div className="max-w-[1200px] mx-auto px-4 sm:px-6 md:px-8 pb-4 sm:pb-6 md:pb-8 pt-4 sm:pt-6 md:pt-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
             <div className="flex items-end gap-3 sm:gap-4 flex-1">
               {/* Business Logo */}
-              <div className="flex-shrink-0">
-                {(business as any).logo || (business.gallery && business.gallery.length > 0) ? (
+              <div className="flex-shrink-0 relative">
+                {business.logo && business.logo.trim() ? (
                   <img
-                    src={(business as any).logo || business.gallery[0]}
+                    key={business.logo} // Force re-render when logo changes
+                    src={business.logo}
                     alt={`${business.name} logo`}
-                    className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-xl object-cover border-2 border-white/90 shadow-lg"
+                    className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-xl object-contain bg-white/10 p-1 border-2 border-white/90 shadow-lg"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.style.display = 'none';
                       const placeholder = target.nextElementSibling as HTMLElement;
                       if (placeholder) placeholder.style.display = 'flex';
                     }}
+                    onLoad={() => {
+                      // Hide placeholder when image loads successfully
+                      const placeholder = document.querySelector(`[data-logo-placeholder="${business?.id}"]`) as HTMLElement;
+                      if (placeholder) placeholder.style.display = 'none';
+                    }}
                   />
                 ) : null}
                 <div 
-                  className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-xl bg-gradient-to-br from-[#1e3c72] to-[#2a5298] flex items-center justify-center border-2 border-white/90 shadow-lg"
-                  style={{ display: (business as any).logo || (business.gallery && business.gallery.length > 0) ? 'none' : 'flex' }}
+                  data-logo-placeholder={business.id}
+                  className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-xl bg-gradient-to-br from-[#1e3c72] to-[#2a5298] flex items-center justify-center border-2 border-white/90 shadow-lg"
+                  style={{ display: (business.logo && business.logo.trim()) ? 'none' : 'flex' }}
                 >
                   <span className="text-white font-bold text-xl sm:text-2xl md:text-3xl">
                     {business.name.charAt(0).toUpperCase()}
                   </span>
                 </div>
+                {canEdit && (
+                  <label 
+                    htmlFor="logo-upload-input"
+                    className="absolute -bottom-2 -right-2 px-2 py-1.5 bg-black/80 hover:bg-black/90 backdrop-blur-sm text-white rounded-lg cursor-pointer transition-all z-20 flex items-center gap-1.5 shadow-lg"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.log('Logo change button clicked');
+                    }}
+                  >
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                      <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                    </svg>
+                    <span className="text-xs font-medium whitespace-nowrap">{uploadingLogo ? 'Uploading...' : 'Change'}</span>
+                    <input
+                      id="logo-upload-input"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      disabled={uploadingLogo}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                )}
               </div>
               
               {/* Business Name and Info */}
-              <div className="flex-1 min-w-0 pb-1">
+              <div className="flex-1 min-w-0 pb-10">
                 <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-1 sm:mb-2 break-words drop-shadow-lg">{business.name}</h1>
-                <p className="text-base sm:text-lg text-white/90 mb-2 sm:mb-3 drop-shadow-md">{business.category} • {business.barangay}</p>
                 
                 {/* Badges */}
                 <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
@@ -704,40 +1030,53 @@ export default function BusinessProfile({ businessId }: BusinessProfileProps) {
       </div>
 
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 md:px-8 py-6 sm:py-8 md:py-10">
-        {/* Edit Details Button - Accessible Location */}
-        {canEdit && (
-          <div className="mb-6 flex justify-end">
-            <button 
-              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-[#0f4c75] to-[#1b627d] hover:shadow-[0_4px_15px_rgba(15,76,117,0.4)] text-white rounded-lg font-semibold cursor-pointer transition-all duration-300 hover:-translate-y-0.5 text-sm sm:text-base" 
-              onClick={handleEditDetails}
-            >
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-              </svg>
-              <span>Edit Details</span>
-            </button>
-          </div>
-        )}
-
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
           <div className="flex-1 w-full">
           {/* About Section */}
           <div className="bg-[#2a2a2a] rounded-[20px] p-4 sm:p-6 mb-6 shadow-[0_8px_30px_rgba(0,0,0,0.4)] border border-white/5">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-2">
               <h2 className="text-xl sm:text-2xl font-bold text-white">About {business.name}</h2>
-              {canEdit && (
+              {canEdit && editingSection !== 'description' && (
                 <button 
                   className="flex items-center gap-1.5 text-xs sm:text-sm text-[#6ab8d8] hover:text-[#8bc5d9] cursor-pointer transition-colors self-start sm:self-auto" 
-                  onClick={handleEditDetails}
+                  onClick={() => startEditing('description')}
                 >
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                     <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
                   </svg>
-                  Edit Details
+                  Edit
                 </button>
               )}
             </div>
-            <p className="text-white/80 text-sm sm:text-base leading-relaxed">{business.description}</p>
+            {editingSection === 'description' ? (
+              <div className="space-y-4">
+                <textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  rows={6}
+                  className="w-full px-4 py-3 bg-[#1a1a1a] border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-[#6ab8d8] transition-colors resize-none"
+                  placeholder="Describe your business..."
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSaveDescription}
+                    disabled={saving}
+                    className="px-4 py-2 bg-[#6ab8d8] text-white rounded-lg font-medium hover:bg-[#5aa8c8] transition-colors disabled:opacity-50"
+                  >
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    onClick={cancelEditing}
+                    disabled={saving}
+                    className="px-4 py-2 bg-[#2a2a2a] border border-white/10 text-white rounded-lg font-medium hover:bg-[#1a1a1a] transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-white/80 text-sm sm:text-base leading-relaxed">{business.description}</p>
+            )}
           </div>
 
           {/* Gallery */}
@@ -763,24 +1102,20 @@ export default function BusinessProfile({ businessId }: BusinessProfileProps) {
             </div>
             {business.gallery && business.gallery.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-                {business.gallery.map((photo, index) => (
+                {business.gallery.slice(0, 6).map((photo, index) => (
                   <div key={index} className="aspect-square rounded-lg overflow-hidden relative group">
                     <img 
                       src={photo} 
                       alt={`${business.name} gallery ${index + 1}`} 
                       className="w-full h-full object-cover hover:scale-105 transition-transform cursor-pointer" 
-                      onClick={() => window.open(photo, '_blank')}
+                      onClick={() => handleOpenGalleryModal(index)}
                     />
                     {canEdit && (
                       <button
-                        className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-black/70 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-black/70 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Handle delete photo - would need API endpoint
-                          if (confirm('Delete this photo?')) {
-                            // TODO: Implement delete photo API call
-                            console.log('Delete photo:', photo);
-                          }
+                          handleDeleteGalleryImage(index);
                         }}
                         title="Delete photo"
                       >
@@ -788,6 +1123,18 @@ export default function BusinessProfile({ businessId }: BusinessProfileProps) {
                           <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
                         </svg>
                       </button>
+                    )}
+                    {/* Show "View More" overlay on the 6th image if there are more images */}
+                    {index === 5 && business.gallery.length > 6 && (
+                      <div 
+                        className="absolute inset-0 bg-black/70 flex items-center justify-center cursor-pointer hover:bg-black/80 transition-colors z-20"
+                        onClick={() => handleOpenGalleryModal(0)}
+                      >
+                        <div className="text-center text-white">
+                          <p className="text-2xl font-bold">+{business.gallery.length - 6}</p>
+                          <p className="text-sm mt-1">View All</p>
+                        </div>
+                      </div>
                     )}
                   </div>
                 ))}
@@ -865,7 +1212,132 @@ export default function BusinessProfile({ businessId }: BusinessProfileProps) {
         <div className="w-full lg:w-[380px] flex-shrink-0 space-y-4 sm:space-y-6">
           {/* Contact Information */}
           <div className="bg-[#2a2a2a] rounded-[20px] p-4 sm:p-6 shadow-[0_8px_30px_rgba(0,0,0,0.4)] border border-white/5">
-            <h3 className="text-lg sm:text-xl font-bold text-white mb-4 sm:mb-6">Contact Information</h3>
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h3 className="text-lg sm:text-xl font-bold text-white">Contact Information</h3>
+              {canEdit && editingSection !== 'contact' && (
+                <button 
+                  className="flex items-center gap-1.5 text-xs sm:text-sm text-[#6ab8d8] hover:text-[#8bc5d9] cursor-pointer transition-colors" 
+                  onClick={() => startEditing('contact')}
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                  </svg>
+                  Edit
+                </button>
+              )}
+            </div>
+            
+            {editingSection === 'contact' ? (
+              <div className="space-y-4">
+                {/* Location Editing */}
+                <div>
+                  <label className="block text-sm font-medium text-white/80 mb-2">Location/Address</label>
+                  <input
+                    type="text"
+                    value={editLocation}
+                    onChange={(e) => setEditLocation(e.target.value)}
+                    className="w-full px-4 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-[#6ab8d8] transition-colors mb-3"
+                    placeholder="Enter full address or use map below to select location"
+                  />
+                  <div className="mt-2">
+                    <SimpleMapPicker
+                      lat={editLat}
+                      lng={editLng}
+                      address={editLocation}
+                      onLocationSelect={handleMapLocationSelect}
+                      height="300px"
+                    />
+                  </div>
+                </div>
+                
+                {/* Contact Info Editing */}
+                <div>
+                  <label className="block text-sm font-medium text-white/80 mb-2">Phone</label>
+                  <input
+                    type="tel"
+                    value={editContactInfo.phone || ''}
+                    onChange={(e) => setEditContactInfo({ ...editContactInfo, phone: e.target.value })}
+                    className="w-full px-4 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-[#6ab8d8] transition-colors"
+                    placeholder="+63 123 456 7890"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-white/80 mb-2">Email</label>
+                  <input
+                    type="email"
+                    value={editContactInfo.email || ''}
+                    onChange={(e) => setEditContactInfo({ ...editContactInfo, email: e.target.value })}
+                    className="w-full px-4 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-[#6ab8d8] transition-colors"
+                    placeholder="email@example.com"
+                  />
+                </div>
+                
+                {/* Social Media Editing */}
+                <div className="pt-4 border-t border-white/10">
+                  <p className="text-sm font-medium text-white/80 mb-3">Social Media</p>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-white/80 mb-2">Facebook URL</label>
+                      <input
+                        type="url"
+                        value={editSocials.facebook || ''}
+                        onChange={(e) => setEditSocials({ ...editSocials, facebook: e.target.value })}
+                        className="w-full px-4 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-[#6ab8d8] transition-colors"
+                        placeholder="https://facebook.com/yourbusiness"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-white/80 mb-2">Instagram URL</label>
+                      <input
+                        type="url"
+                        value={editSocials.instagram || ''}
+                        onChange={(e) => setEditSocials({ ...editSocials, instagram: e.target.value })}
+                        className="w-full px-4 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-[#6ab8d8] transition-colors"
+                        placeholder="https://instagram.com/yourbusiness"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-white/80 mb-2">Twitter URL</label>
+                      <input
+                        type="url"
+                        value={editSocials.twitter || ''}
+                        onChange={(e) => setEditSocials({ ...editSocials, twitter: e.target.value })}
+                        className="w-full px-4 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-[#6ab8d8] transition-colors"
+                        placeholder="https://twitter.com/yourbusiness"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-white/80 mb-2">Website URL</label>
+                      <input
+                        type="url"
+                        value={editSocials.website || ''}
+                        onChange={(e) => setEditSocials({ ...editSocials, website: e.target.value })}
+                        className="w-full px-4 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-[#6ab8d8] transition-colors"
+                        placeholder="https://yourbusiness.com"
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={handleSaveContact}
+                    disabled={saving}
+                    className="px-4 py-2 bg-[#6ab8d8] text-white rounded-lg font-medium hover:bg-[#5aa8c8] transition-colors disabled:opacity-50"
+                  >
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    onClick={cancelEditing}
+                    disabled={saving}
+                    className="px-4 py-2 bg-[#2a2a2a] border border-white/10 text-white rounded-lg font-medium hover:bg-[#1a1a1a] transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
             
             <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="flex gap-3">
@@ -922,11 +1394,11 @@ export default function BusinessProfile({ businessId }: BusinessProfileProps) {
                       href={socials.instagram} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center cursor-pointer transition-colors text-white/80 hover:text-white"
+                      className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 hover:opacity-90 flex items-center justify-center cursor-pointer transition-all"
                       title="Instagram"
                     >
-                      <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                        <path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4c0 3.2-2.6 5.8-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.6C2 4.6 4.6 2 7.6 2m-.2 2C5.6 4 4 5.6 4 7.6v8.8C4 18.4 5.6 20 7.6 20h8.8c2 0 3.6-1.6 3.6-3.6V7.6C20 5.6 18.4 4 16.4 4H7.6m9.65 1.5c.7 0 1.25.55 1.25 1.25S17.95 8 17.25 8s-1.25-.55-1.25-1.25.55-1.25 1.25-1.25M12 7c2.8 0 5 2.2 5 5s-2.2 5-5 5-5-2.2-5-5 2.2-5 5-5m0 2c-1.7 0-3 1.3-3 3s1.3 3 3 3 3-1.3 3-3-1.3-3-3-3z"/>
+                      <svg viewBox="0 0 24 24" width="20" height="20" fill="white">
+                        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
                       </svg>
                     </a>
                   )}
@@ -935,11 +1407,11 @@ export default function BusinessProfile({ businessId }: BusinessProfileProps) {
                       href={socials.facebook} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center cursor-pointer transition-colors text-white/80 hover:text-white"
+                      className="w-10 h-10 rounded-full bg-[#1877F2] hover:bg-[#166FE5] flex items-center justify-center cursor-pointer transition-colors"
                       title="Facebook"
                     >
-                      <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                        <path d="M17 2H7C4.24 2 2 4.24 2 7v10c0 2.76 2.24 5 5 5h10c2.76 0 5-2.24 5-5V7c0-2.76-2.24-5-5-5zm-5 15.5c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm7-11c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/>
+                      <svg viewBox="0 0 24 24" width="20" height="20" fill="white">
+                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                       </svg>
                     </a>
                   )}
@@ -948,11 +1420,11 @@ export default function BusinessProfile({ businessId }: BusinessProfileProps) {
                       href={socials.twitter} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center cursor-pointer transition-colors text-white/80 hover:text-white"
+                      className="w-10 h-10 rounded-full bg-[#1DA1F2] hover:bg-[#1a8cd8] flex items-center justify-center cursor-pointer transition-colors"
                       title="Twitter"
                     >
-                      <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                        <path d="M22.46 6c-.85.38-1.78.64-2.75.76 1-.6 1.76-1.55 2.12-2.68-.93.55-1.96.95-3.06 1.17-.88-.94-2.13-1.53-3.52-1.53-2.66 0-4.82 2.16-4.82 4.82 0 .38.04.75.13 1.1-4-.2-7.55-2.12-9.92-5.04-.42.72-.66 1.55-.66 2.44 0 1.67.85 3.15 2.14 4.01-.79-.02-1.53-.24-2.18-.6v.06c0 2.34 1.66 4.29 3.87 4.73-.4.11-.83.17-1.27.17-.31 0-.62-.03-.92-.08.62 1.94 2.43 3.35 4.57 3.39-1.67 1.31-3.78 2.09-6.07 2.09-.39 0-.78-.02-1.17-.07 2.18 1.4 4.77 2.21 7.55 2.21 9.06 0 14.01-7.5 14.01-14.01 0-.21 0-.42-.02-.63.96-.69 1.8-1.56 2.46-2.55z"/>
+                      <svg viewBox="0 0 24 24" width="20" height="20" fill="white">
+                        <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
                       </svg>
                     </a>
                   )}
@@ -964,20 +1436,22 @@ export default function BusinessProfile({ businessId }: BusinessProfileProps) {
                       className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center cursor-pointer transition-colors text-white/80 hover:text-white"
                       title="Website"
                     >
-                      <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                        <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/>
+                      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                        <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm6.93 6h-2.95c-.32-1.25-.78-2.45-1.38-3.56 1.84.63 3.37 1.91 4.33 3.56zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2 0 .68.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56-1.84-.63-3.37-1.9-4.33-3.56zm2.95-8H5.08c.96-1.66 2.49-2.93 4.33-3.56C8.81 5.55 8.35 6.75 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2 0-.68.07-1.34.16-2h4.68c.09.66.16 1.32.16 2 0 .68-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95c-.96 1.65-2.49 2.93-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2 0-.68-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.38z"/>
                       </svg>
                     </a>
                   )}
                 </div>
               </div>
             )}
+              </>
+            )}
           </div>
 
           {/* Store Hours */}
-          {business.openTime && business.closeTime && (
-            <div className="bg-[#2a2a2a] rounded-[20px] p-4 sm:p-6 shadow-[0_8px_30px_rgba(0,0,0,0.4)] border border-white/5">
-              <div className="flex items-center gap-3 mb-4">
+          <div className="bg-[#2a2a2a] rounded-[20px] p-4 sm:p-6 shadow-[0_8px_30px_rgba(0,0,0,0.4)] border border-white/5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
                 <div className="w-6 h-6 text-white/60">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
                     <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm4.2 14.2L11 13V7h1.5v5.2l4.5 2.7-.8 1.3z"/>
@@ -985,14 +1459,72 @@ export default function BusinessProfile({ businessId }: BusinessProfileProps) {
                 </div>
                 <h3 className="text-lg sm:text-xl font-bold text-white m-0">Store Hours</h3>
               </div>
+              {canEdit && editingSection !== 'storeHours' && (
+                <button 
+                  className="flex items-center gap-1.5 text-xs sm:text-sm text-[#6ab8d8] hover:text-[#8bc5d9] cursor-pointer transition-colors" 
+                  onClick={() => startEditing('storeHours')}
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                  </svg>
+                  {business.openTime && business.closeTime ? 'Edit' : 'Add'}
+                </button>
+              )}
+            </div>
+            {editingSection === 'storeHours' ? (
+              <div className="space-y-4">
+                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                  <div key={day} className="flex items-center gap-2">
+                    <div className="w-24 text-sm text-white/80">{day}</div>
+                    <input
+                      type="time"
+                      value={editStoreHours[day.toLowerCase()]?.open || ''}
+                      onChange={(e) => setEditStoreHours({
+                        ...editStoreHours,
+                        [day.toLowerCase()]: { ...editStoreHours[day.toLowerCase()], open: e.target.value, close: editStoreHours[day.toLowerCase()]?.close || '' }
+                      })}
+                      className="flex-1 px-3 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#6ab8d8] transition-colors"
+                    />
+                    <span className="text-white/60">to</span>
+                    <input
+                      type="time"
+                      value={editStoreHours[day.toLowerCase()]?.close || ''}
+                      onChange={(e) => setEditStoreHours({
+                        ...editStoreHours,
+                        [day.toLowerCase()]: { ...editStoreHours[day.toLowerCase()], open: editStoreHours[day.toLowerCase()]?.open || '', close: e.target.value }
+                      })}
+                      className="flex-1 px-3 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#6ab8d8] transition-colors"
+                    />
+                  </div>
+                ))}
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={handleSaveStoreHours}
+                    disabled={saving}
+                    className="px-4 py-2 bg-[#6ab8d8] text-white rounded-lg font-medium hover:bg-[#5aa8c8] transition-colors disabled:opacity-50"
+                  >
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    onClick={cancelEditing}
+                    disabled={saving}
+                    className="px-4 py-2 bg-[#2a2a2a] border border-white/10 text-white rounded-lg font-medium hover:bg-[#1a1a1a] transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : business.openTime && business.closeTime ? (
               <div className="space-y-3">
                 <div className="flex justify-between items-center py-2">
                   <span className="text-base font-medium text-white">Open Hours</span>
                   <span className="text-base text-white/80">{storeHours}</span>
                 </div>
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-white/60 text-sm">No store hours set</p>
+            )}
+          </div>
 
           {/* Location & Directions */}
           <div className="bg-[#2a2a2a] rounded-[20px] p-4 sm:p-6 shadow-[0_8px_30px_rgba(0,0,0,0.4)] border border-white/5">
@@ -1230,6 +1762,75 @@ export default function BusinessProfile({ businessId }: BusinessProfileProps) {
           )}
         </div>
       </div>
+
+      {/* Gallery Modal/Slider */}
+      {galleryModalOpen && business?.gallery && business.gallery.length > 0 && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center pt-32 pb-4 px-4 bg-black/80 backdrop-blur-sm"
+          onClick={handleCloseGalleryModal}
+        >
+          <div 
+            className="relative max-w-6xl w-full max-h-[calc(100vh-10rem)] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              onClick={handleCloseGalleryModal}
+              className="absolute -top-12 right-0 z-50 p-2 bg-black/70 hover:bg-black/90 rounded-full text-white transition-colors backdrop-blur-sm"
+              aria-label="Close gallery"
+            >
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+              </svg>
+            </button>
+
+            {/* Main Image */}
+            <div className="relative flex-1 flex items-center justify-center overflow-hidden">
+              {/* Previous Arrow */}
+              {business.gallery.length > 1 && (
+                <button
+                  onClick={handlePrevImage}
+                  className="absolute left-4 z-10 p-3 bg-black/70 hover:bg-black/90 rounded-full text-white transition-all hover:scale-110 backdrop-blur-sm"
+                  aria-label="Previous image"
+                >
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                  </svg>
+                </button>
+              )}
+
+              {/* Image */}
+              <img
+                src={business.gallery[currentImageIndex]}
+                alt={`${business.name} gallery ${currentImageIndex + 1}`}
+                className="max-w-full max-h-[calc(100vh-14rem)] object-contain rounded-lg shadow-2xl"
+              />
+
+              {/* Next Arrow */}
+              {business.gallery.length > 1 && (
+                <button
+                  onClick={handleNextImage}
+                  className="absolute right-4 z-10 p-3 bg-black/70 hover:bg-black/90 rounded-full text-white transition-all hover:scale-110 backdrop-blur-sm"
+                  aria-label="Next image"
+                >
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                    <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {/* Image Counter */}
+            {business.gallery.length > 1 && (
+              <div className="mt-4 flex justify-center">
+                <div className="text-center text-white/90 text-sm font-medium bg-black/70 px-4 py-1.5 rounded-full backdrop-blur-sm">
+                  {currentImageIndex + 1} / {business.gallery.length}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -20,6 +20,11 @@ const getApiBaseUrl = (): string => {
 
 const API_BASE_URL = getApiBaseUrl();
 
+// Debug logging in development
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  console.log('API Base URL:', API_BASE_URL);
+}
+
 interface BusinessFilters {
   page?: number;
   limit?: number;
@@ -39,9 +44,11 @@ interface CreateBusinessData {
   contactInfo?: string;
   socials?: any;
   coverPhoto?: string;
+  logo?: string;
   gallery?: string[];
   openTime?: string;
   closeTime?: string;
+  verificationDocumentUrl?: string;
 }
 
 interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig {
@@ -184,6 +191,16 @@ class ApiService {
     return response.data;
   }
 
+  async getSearchSuggestions(query: string, limit: number = 5): Promise<ServiceResponse> {
+    if (!query || query.trim().length < 2) {
+      return { success: true, data: { businesses: [] } };
+    }
+    const response = await this.api.get('/businesses/search', { 
+      params: { q: query, limit, page: 1 } 
+    });
+    return response.data;
+  }
+
   async getNearbyBusinesses(lat: number, lng: number, radiusKm?: number): Promise<ServiceResponse> {
     const response = await this.api.get('/businesses/nearby', {
       params: { lat, lng, radiusKm },
@@ -218,6 +235,16 @@ class ApiService {
 
   async deleteBusiness(id: number): Promise<ServiceResponse> {
     const response = await this.api.delete(`/businesses/${id}`);
+    return response.data;
+  }
+
+  async submitVerification(businessId: number, documentUrl: string): Promise<ServiceResponse> {
+    const response = await this.api.post(`/businesses/${businessId}/verification`, { documentUrl });
+    return response.data;
+  }
+
+  async getVerificationStatus(businessId: number): Promise<ServiceResponse> {
+    const response = await this.api.get(`/businesses/${businessId}/verification`);
     return response.data;
   }
 
@@ -304,7 +331,7 @@ class ApiService {
     return response.data;
   }
 
-  async getAllUsers(params?: { page?: number; limit?: number }): Promise<ServiceResponse> {
+  async getAllUsers(params?: { page?: number; limit?: number; role?: string; search?: string }): Promise<ServiceResponse> {
     const response = await this.api.get('/admin/users', { params });
     return response.data;
   }
@@ -324,7 +351,7 @@ class ApiService {
     return response.data;
   }
 
-  async getAllBusinessesAdmin(params?: { page?: number; limit?: number }): Promise<ServiceResponse> {
+  async getAllBusinessesAdmin(params?: { page?: number; limit?: number; isVerified?: boolean; search?: string }): Promise<ServiceResponse> {
     const response = await this.api.get('/admin/businesses', { params });
     return response.data;
   }
@@ -349,8 +376,8 @@ class ApiService {
     return response.data;
   }
 
-  async getAllVerifications(): Promise<ServiceResponse> {
-    const response = await this.api.get('/admin/verifications');
+  async getAllVerifications(params?: { page?: number; limit?: number; status?: string }): Promise<ServiceResponse> {
+    const response = await this.api.get('/admin/verifications', { params });
     return response.data;
   }
 

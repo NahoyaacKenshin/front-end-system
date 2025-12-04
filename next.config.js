@@ -2,12 +2,18 @@
 const nextConfig = {
   reactStrictMode: true,
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7000/api',
+    // Only set if explicitly provided, otherwise let rewrites handle it
+    ...(process.env.NEXT_PUBLIC_API_URL && {
+      NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+    }),
   },
   async rewrites() {
-    // Only use rewrites in development when API_URL is not set
-    // In production, use NEXT_PUBLIC_API_URL environment variable
-    if (process.env.NODE_ENV === 'development' && !process.env.NEXT_PUBLIC_API_URL) {
+    // Use rewrites in development when API_URL is not explicitly set
+    // In production, NEXT_PUBLIC_API_URL should be set
+    const isDev = process.env.NODE_ENV !== 'production';
+    const hasApiUrl = process.env.NEXT_PUBLIC_API_URL;
+    
+    if (isDev && !hasApiUrl) {
       return [
         {
           source: '/api/:path*',

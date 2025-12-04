@@ -43,14 +43,14 @@ export default function Navbar() {
     { href: '/business-owner-dashboard', label: 'Dashboard', icon: 'dashboard' },
     { href: '/my-businesses', label: 'My Business', icon: 'my-business' },
     { href: '/businesses/new', label: 'Add Business', icon: 'add' },
-    { href: '/wishlist', label: 'Favorites', icon: 'heart' },
+    { href: '/favorites', label: 'Favorites', icon: 'heart' },
     { href: '/businesses', label: 'Browse', icon: 'list' },
   ];
 
   // Customer menu items
   const customerMenuItems = [
     { href: '/home', label: 'Home', icon: 'home' },
-    { href: '/wishlist', label: 'Favorites', icon: 'heart' },
+    { href: '/favorites', label: 'Favorites', icon: 'heart' },
     { href: '/businesses/new', label: 'Add Business', icon: 'add' },
     { href: '/businesses', label: 'Browse', icon: 'list' },
   ];

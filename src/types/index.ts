@@ -20,6 +20,7 @@ export interface Business {
   contactInfo?: string | null;
   socials?: any;
   coverPhoto?: string | null;
+  logo?: string | null;
   gallery: string[];
   isVerified: boolean;
   openTime?: string | null;

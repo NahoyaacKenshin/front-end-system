@@ -11,11 +11,15 @@ import Navbar from '../../src/components/Layout/Navbar';
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [visibleElements, setVisibleElements] = useState<Set<string>>(new Set());
   const [currentSlide, setCurrentSlide] = useState(0);
   const heroRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLFormElement>(null);
   const sectionRef = useRef<HTMLDivElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { user } = useAuth();
 
@@ -79,12 +83,66 @@ export default function HomePage() {
     router.push(`/businesses?category=${categoryValue}`);
   };
 
+  // Debounced search for suggestions
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchQuery.trim().length >= 2) {
+        loadSuggestions(searchQuery);
+      } else {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node) && 
+          searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const loadSuggestions = async (query: string) => {
+    try {
+      setLoadingSuggestions(true);
+      const response = await api.getSearchSuggestions(query, 5);
+      if (response.success && response.data?.businesses) {
+        setSuggestions(response.data.businesses);
+        setShowSuggestions(response.data.businesses.length > 0);
+      } else {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    } catch (error) {
+      console.error('Error loading suggestions:', error);
+      setSuggestions([]);
+      setShowSuggestions(false);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
   const handleSearch = (e: FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) {
       return;
     }
+    setShowSuggestions(false);
     router.push(`/businesses?search=${encodeURIComponent(searchQuery)}`);
+  };
+
+  const handleSuggestionClick = (businessName: string) => {
+    setSearchQuery(businessName);
+    setShowSuggestions(false);
+    router.push(`/businesses?search=${encodeURIComponent(businessName)}`);
   };
 
   const nextSlide = () => {
@@ -139,7 +197,7 @@ export default function HomePage() {
           </p>
           
           <form ref={searchRef} id="search-form" className={`max-w-[800px] mx-auto transition-all duration-800 ${visibleElements.has('search-form') ? 'animate-fade-in-scale opacity-100' : 'opacity-0'}`} style={{ animationDelay: '0.6s' }} onSubmit={handleSearch}>
-            <div className="relative bg-white/80 backdrop-blur-md rounded-[30px] shadow-[0_10px_40px_rgba(0,0,0,0.2)] overflow-hidden border border-white/30">
+            <div className="relative bg-white/80 backdrop-blur-md rounded-[30px] shadow-[0_10px_40px_rgba(0,0,0,0.2)] overflow-visible border border-white/30">
               <div className="flex items-center gap-4 px-6 py-5">
                 <svg 
                   className="text-[#1e3c72] flex-shrink-0"
@@ -153,13 +211,50 @@ export default function HomePage() {
                   <circle cx="11" cy="11" r="8"></circle>
                   <path d="m21 21-4.35-4.35"></path>
                 </svg>
-                <input
-                  type="text"
-                  placeholder="Search for businesses, places, or services..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1 border-none outline-none text-lg text-gray-800 bg-transparent placeholder:text-gray-500 font-medium"
-                />
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    placeholder="Search for businesses, places, or services..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setShowSuggestions(true);
+                    }}
+                    onFocus={() => {
+                      if (suggestions.length > 0) {
+                        setShowSuggestions(true);
+                      }
+                    }}
+                    className="w-full border-none outline-none text-lg text-gray-800 bg-transparent placeholder:text-gray-500 font-medium"
+                  />
+                  {/* Suggestions Dropdown */}
+                  {showSuggestions && (searchQuery.trim().length >= 2 || suggestions.length > 0) && (
+                    <div 
+                      ref={suggestionsRef}
+                      className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] border border-gray-200 max-h-64 overflow-y-auto z-50"
+                    >
+                      {loadingSuggestions ? (
+                        <div className="p-4 text-center text-gray-500">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#1e3c72] mx-auto"></div>
+                        </div>
+                      ) : suggestions.length > 0 ? (
+                        suggestions.map((business) => (
+                          <button
+                            key={business.id}
+                            type="button"
+                            onClick={() => handleSuggestionClick(business.name)}
+                            className="w-full px-4 py-3 text-left hover:bg-gray-100 transition-colors border-b border-gray-100 last:border-b-0"
+                          >
+                            <div className="font-medium text-gray-900">{business.name}</div>
+                            <div className="text-sm text-gray-500 mt-1">{business.category} • {business.barangay}</div>
+                          </button>
+                        ))
+                      ) : searchQuery.trim().length >= 2 ? (
+                        <div className="p-4 text-center text-gray-500">No results found</div>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
                 <button 
                   type="submit" 
                   className="px-8 py-3 bg-gradient-to-br from-[#0f4c75] to-[#1b627d] text-white border-none rounded-[20px] text-base font-semibold cursor-pointer transition-all duration-300 whitespace-nowrap hover:shadow-[0_4px_15px_rgba(15,76,117,0.4)] hover:-translate-y-0.5 active:translate-y-0"
