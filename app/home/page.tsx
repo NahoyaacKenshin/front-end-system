@@ -16,6 +16,7 @@ export default function HomePage() {
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [visibleElements, setVisibleElements] = useState<Set<string>>(new Set());
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
   const heroRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLFormElement>(null);
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -171,15 +172,30 @@ export default function HomePage() {
     }
   }, [itemsPerSlide, categories.length, currentSlide]);
 
+  // Autoplay slider
+  useEffect(() => {
+    const maxSlide = Math.ceil(categories.length / itemsPerSlide) - 1;
+    // Only autoplay if there are multiple slides
+    if (maxSlide <= 0) return;
+
+    const autoplayInterval = setInterval(() => {
+      if (!isPaused) {
+        setCurrentSlide((prev) => (prev + 1) % (maxSlide + 1));
+      }
+    }, 5000); // Change slide every 5 seconds
+
+    return () => clearInterval(autoplayInterval);
+  }, [categories.length, itemsPerSlide, isPaused]);
+
   const getCategoryImage = (categoryValue: string): string => {
-    // Map categories to images - using Parola.jpg as default for now
+    // Map categories to images from public folder
     const categoryImages: Record<string, string> = {
-      'food-dining': '/Parola.jpg',
-      'transportation': '/Parola.jpg',
-      'accommodation': '/Parola.jpg',
-      'retail-shops': '/Parola.jpg',
-      'services': '/Parola.jpg',
-      'entertainment': '/Parola.jpg',
+      'food-dining': '/foodndining.jpg',
+      'transportation': '/transportation.jpg',
+      'accommodation': '/accomodation.jpg',
+      'retail-shops': '/retail_shop.jpg',
+      'services': '/services.jpg',
+      'entertainment': '/entertainment.jpg',
     };
     return categoryImages[categoryValue] || '/Parola.jpg';
   };
@@ -275,7 +291,11 @@ export default function HomePage() {
 
         <div className="relative max-w-[1400px] mx-auto px-4 sm:px-6 md:px-8">
           {/* Slider Container */}
-          <div className="relative overflow-hidden">
+          <div 
+            className="relative overflow-hidden"
+            onMouseEnter={() => setIsPaused(true)}
+            onMouseLeave={() => setIsPaused(false)}
+          >
             <div 
               className="flex transition-transform duration-500 ease-in-out"
               style={{ 
@@ -385,7 +405,7 @@ export default function HomePage() {
       </div>
 
       <footer className="bg-[#0a0a0a] py-[30px] px-5 text-center">
-        <p className="text-white/70 text-sm">@2025 HCI all right reserved</p>
+        <p className="text-white/70 text-sm">©2025 Locafy, All Rights Reserved</p>
       </footer>
     </div>
   );
