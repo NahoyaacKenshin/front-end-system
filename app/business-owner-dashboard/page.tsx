@@ -159,11 +159,11 @@ export default function DashboardPage() {
   };
 
   const handleViewBusiness = (businessId: number) => {
-    router.push(`/business/${businessId}`);
+    router.push(`/business/${businessId}?mode=view`);
   };
 
   const handleEditBusiness = (businessId: number) => {
-    router.push(`/businesses/${businessId}/edit`);
+    router.push(`/business/${businessId}`);
   };
 
   const handleDeleteBusiness = async (businessId: number) => {

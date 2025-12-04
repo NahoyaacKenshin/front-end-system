@@ -60,7 +60,8 @@ export async function optimizeImage(
         }
 
         // Calculate dimensions maintaining aspect ratio
-        let { width, height } = standard;
+        let width: number = standard.width;
+        let height: number = standard.height;
         const aspectRatio = img.width / img.height;
 
         if (type === 'LOGO' || type === 'GALLERY') {
@@ -102,7 +103,7 @@ export async function optimizeImage(
         ctx.drawImage(img, 0, 0, width, height);
 
         // Convert to base64 with compression
-        let quality = standard.quality;
+        let quality: number = standard.quality;
         let base64 = canvas.toDataURL('image/jpeg', quality);
 
         // If still too large, reduce quality further

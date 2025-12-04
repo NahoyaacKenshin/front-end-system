@@ -30,6 +30,8 @@ export default function AddBusinessPage() {
     location: '',
     contactInfo: [] as ContactInfo[],
   });
+  const [verificationDocument, setVerificationDocument] = useState<File | null>(null);
+  const [verificationDocumentPreview, setVerificationDocumentPreview] = useState<string>('');
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -39,6 +41,15 @@ export default function AddBusinessPage() {
       router.push('/admin');
     }
   }, [user, router]);
+
+  // Cleanup object URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (verificationDocumentPreview) {
+        URL.revokeObjectURL(verificationDocumentPreview);
+      }
+    };
+  }, [verificationDocumentPreview]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -71,6 +82,44 @@ export default function AddBusinessPage() {
         ...prev,
         contactInfo: newContactInfo
       };
+    });
+  };
+
+  // Verification document handlers
+  const handleVerificationDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        setError('Verification document must be less than 10MB');
+        return;
+      }
+      setVerificationDocument(file);
+      setVerificationDocumentPreview(URL.createObjectURL(file));
+      setError(null);
+    }
+  };
+
+  const removeVerificationDocument = () => {
+    setVerificationDocument(null);
+    if (verificationDocumentPreview) {
+      URL.revokeObjectURL(verificationDocumentPreview);
+    }
+    setVerificationDocumentPreview('');
+  };
+
+  // Convert file to base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (reader.result) {
+          resolve(reader.result as string);
+        } else {
+          reject(new Error('Failed to read file'));
+        }
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
     });
   };
 
@@ -121,6 +170,12 @@ export default function AddBusinessPage() {
         }
       });
 
+      // Convert verification document to base64 if provided
+      let verificationDocumentUrl: string | undefined;
+      if (verificationDocument) {
+        verificationDocumentUrl = await fileToBase64(verificationDocument);
+      }
+
       const businessData = {
         name: formData.name.trim(),
         description: formData.description.trim(),
@@ -128,6 +183,7 @@ export default function AddBusinessPage() {
         barangay: formData.barangay,
         location: formData.location.trim(),
         contactInfo: Object.keys(contactInfoObj).length > 0 ? contactInfoObj : undefined,
+        verificationDocumentUrl,
       };
 
       const response = await api.createBusiness(businessData);
@@ -312,10 +368,60 @@ export default function AddBusinessPage() {
             </div>
           </div>
 
+          {/* Verification Document */}
+          <div className="bg-[#2a2a2a] rounded-xl p-6 border border-white/10">
+            <h2 className="text-xl font-semibold text-white mb-4">Verification Document (Optional)</h2>
+            <p className="text-white/60 text-sm mb-4">
+              Upload a verification document to get your business verified. This can be a business permit, license, or any official document proving your business legitimacy.
+            </p>
+            
+            {verificationDocumentPreview ? (
+              <div className="space-y-3">
+                {verificationDocument?.type.startsWith('image/') ? (
+                  <img
+                    src={verificationDocumentPreview}
+                    alt="Document preview"
+                    className="max-w-full h-48 object-contain rounded-lg border border-white/10 bg-[#1a1a1a]"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center w-full h-48 border border-white/10 rounded-lg bg-[#1a1a1a]">
+                    <svg className="w-16 h-16 text-white/40 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    <p className="text-white/60">{verificationDocument?.name}</p>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={removeVerificationDocument}
+                  className="w-full px-4 py-2 bg-red-500/10 text-red-400 rounded-lg font-medium hover:bg-red-500/20 transition-colors"
+                >
+                  Remove Document
+                </button>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-white/20 rounded-lg cursor-pointer hover:border-[#6ab8d8] transition-colors">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <svg className="w-10 h-10 mb-3 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <p className="mb-2 text-sm text-white/60">Click to upload verification document</p>
+                  <p className="text-xs text-white/40">PDF, PNG, JPG up to 10MB</p>
+                </div>
+                <input
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.gif,image/*"
+                  onChange={handleVerificationDocumentChange}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
+
           {/* Info Note */}
           <div className="bg-[#2a2a2a]/50 rounded-xl p-4 border border-[#6ab8d8]/20">
             <p className="text-sm text-white/70">
-              <strong className="text-[#6ab8d8]">Note:</strong> You can add photos, logo, gallery, store hours, social media links, and verification documents later by editing your business page.
+              <strong className="text-[#6ab8d8]">Note:</strong> You can add photos, logo, gallery, store hours, and social media links later by editing your business page.
             </p>
           </div>
 
