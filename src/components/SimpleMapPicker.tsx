@@ -5,7 +5,6 @@ import React, { useEffect, useRef, useState } from 'react';
 interface SimpleMapPickerProps {
   lat?: number | null;
   lng?: number | null;
-  address?: string;
   onLocationSelect: (lat: number, lng: number) => void;
   height?: string;
   disabled?: boolean;
@@ -14,7 +13,6 @@ interface SimpleMapPickerProps {
 export default function SimpleMapPicker({
   lat,
   lng,
-  address,
   onLocationSelect,
   height = '400px',
   disabled = false,
@@ -24,15 +22,21 @@ export default function SimpleMapPicker({
   const markerRef = useRef<any>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
+  // --- CONFIGURATION FOR CEBU CITY / CORDOVA ---
+  // South-West corner (Minglanilla/Talisay area) to North-East corner (Liloan/Mactan tip)
+  const CEBU_BOUNDS = [
+    [10.2000, 123.8000], // South West
+    [10.4500, 124.0500], // North East
+  ];
+  const DEFAULT_CENTER = [10.3157, 123.8854]; // Center of Cebu City
+
   // Load Leaflet CSS and JS
   useEffect(() => {
-    // Check if already loaded
     if (window.L) {
       setIsLoaded(true);
       return;
     }
 
-    // Load Leaflet CSS
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
@@ -40,7 +44,6 @@ export default function SimpleMapPicker({
     link.crossOrigin = '';
     document.head.appendChild(link);
 
-    // Load Leaflet JS
     const script = document.createElement('script');
     script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
     script.integrity = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=';
@@ -51,7 +54,6 @@ export default function SimpleMapPicker({
     document.body.appendChild(script);
 
     return () => {
-      // Cleanup
       if (link.parentNode) link.parentNode.removeChild(link);
       if (script.parentNode) script.parentNode.removeChild(script);
     };
@@ -61,14 +63,18 @@ export default function SimpleMapPicker({
   useEffect(() => {
     if (!isLoaded || !mapRef.current || !window.L) return;
 
-    // Always default to Philippines (Manila) if no coordinates provided
-    const defaultLat = lat || 14.5995;
-    const defaultLng = lng || 120.9842;
-    // Use zoom 6 to show more of Philippines when no coordinates, zoom 15 when coordinates exist
-    const defaultZoom = lat && lng ? 15 : 6;
-
-    // Initialize map
-    const map = window.L.map(mapRef.current).setView([defaultLat, defaultLng], defaultZoom);
+    // Use provided lat/lng or default to Cebu City
+    const startLat = lat || DEFAULT_CENTER[0];
+    const startLng = lng || DEFAULT_CENTER[1];
+    
+    // Initialize map with strict constraints
+    const map = window.L.map(mapRef.current, {
+      center: [startLat, startLng],
+      zoom: 13,
+      minZoom: 12, // User cannot zoom out to see the whole country
+      maxBounds: CEBU_BOUNDS, // RESTRICT PANNING TO CEBU/CORDOVA
+      maxBoundsViscosity: 1.0, // Makes the bounds feel "solid" (no rubber banding)
+    });
 
     // Add OpenStreetMap tiles
     window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -86,7 +92,6 @@ export default function SimpleMapPicker({
 
       markerRef.current = marker;
 
-      // Handle marker drag
       if (!disabled) {
         marker.on('dragend', (e: any) => {
           const position = marker.getLatLng();
@@ -101,20 +106,23 @@ export default function SimpleMapPicker({
         const clickedLat = e.latlng.lat;
         const clickedLng = e.latlng.lng;
 
-        // Remove existing marker
+        // Check if click is within bounds (Double safety)
+        if (!map.getBounds().contains(e.latlng)) return;
+
         if (markerRef.current) {
           map.removeLayer(markerRef.current);
         }
 
-        // Create new marker
         const marker = window.L.marker([clickedLat, clickedLng], {
           draggable: true,
         }).addTo(map);
 
         markerRef.current = marker;
         onLocationSelect(clickedLat, clickedLng);
+        
+        // Center the map on the click smoothly
+        map.flyTo([clickedLat, clickedLng], map.getZoom());
 
-        // Handle marker drag
         marker.on('dragend', (e: any) => {
           const position = marker.getLatLng();
           onLocationSelect(position.lat, position.lng);
@@ -122,45 +130,56 @@ export default function SimpleMapPicker({
       });
     }
 
-    // Cleanup on unmount
     return () => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
       }
     };
-  }, [isLoaded, lat, lng, disabled, onLocationSelect]);
+  }, [isLoaded, disabled]); // Removed lat/lng from dependency to prevent map re-initialization on every click
 
   if (!isLoaded) {
     return (
       <div className="w-full bg-[#2a2a2a] rounded-lg p-8 text-center border border-white/10" style={{ height }}>
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6ab8d8] mx-auto"></div>
-        <p className="text-white/60 mt-4">Loading map...</p>
+        <p className="text-white/60 mt-4">Loading Cebu map...</p>
       </div>
     );
   }
 
   return (
     <div className="w-full">
-      {/* Map Container */}
       <div
         ref={mapRef}
         style={{ width: '100%', height, borderRadius: '8px', overflow: 'hidden' }}
-        className="border border-white/10"
+        className="border border-white/10 z-0 relative"
       />
       
       {!disabled && (
-        <p className="text-white/60 text-sm mt-2">
-          Click on the map to set your business location
-        </p>
+        <div className="flex justify-between items-center mt-2">
+           <p className="text-white/60 text-xs">
+            Region restricted to Cebu City & Cordova
+          </p>
+          <button
+            type="button"
+            onClick={(e) => {
+                e.preventDefault();
+                // Reset view to Cebu Center
+                if(mapInstanceRef.current) {
+                    mapInstanceRef.current.flyTo(DEFAULT_CENTER, 13);
+                }
+            }}
+            className="text-[#6ab8d8] text-xs hover:underline cursor-pointer"
+          >
+            Reset View
+          </button>
+        </div>
       )}
     </div>
   );
 }
 
-// Extend Window interface for Leaflet
 declare global {
   interface Window {
     L: any;
   }
 }
-
