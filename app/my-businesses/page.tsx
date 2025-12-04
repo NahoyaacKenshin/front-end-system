@@ -104,7 +104,7 @@ export default function MyBusinessesPage() {
 
   const handleEditBusiness = (id: number) => {
     router.push(`/business/${id}`);
-  };
+    };
 
   const handleDeleteBusiness = async (businessId: number) => {
     const business = businesses.find(b => b.id === businessId);
