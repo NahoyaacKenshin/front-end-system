@@ -91,6 +91,7 @@ export interface BusinessListResponse {
     businesses: Business[];
     pagination: PaginationResult;
   };
+  message: string;
 }
 
 export interface ServiceResponse<T = any> {
