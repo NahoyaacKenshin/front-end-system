@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, FormEvent } from 'react';
+import React, { useState, useEffect, FormEvent, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { api } from '../../src/services/api';
@@ -11,7 +11,7 @@ import type { Business } from '../../src/types';
 
 type SortOption = 'alphabetical' | 'reverse' | 'newest' | 'oldest' | 'highest-favorites' | 'lowest-favorites';
 
-export default function BusinessesPage() {
+function BusinessesContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [filteredBusinesses, setFilteredBusinesses] = useState<Business[]>([]);
@@ -879,5 +879,20 @@ export default function BusinessesPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function BusinessesPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-[#1a1a1a]">
+        <div className="text-center text-white">
+          <div className="inline-block w-12 h-12 border-4 border-white/20 border-t-[#6ab8d8] rounded-full animate-spin"></div>
+          <p className="mt-4 text-lg">Loading...</p>
+        </div>
+      </div>
+    }>
+      <BusinessesContent />
+    </Suspense>
   );
 }

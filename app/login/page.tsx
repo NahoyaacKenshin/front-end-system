@@ -1,11 +1,14 @@
 'use client';
 
-import React, { useState, FormEvent, useEffect } from 'react';
+// Force dynamic rendering to prevent static generation build errors
+export const dynamic = 'force-dynamic';
+
+import React, { useState, FormEvent, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../src/contexts/AuthContext';
 
-export default function LoginPage() {
+function LoginContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -13,16 +16,21 @@ export default function LoginPage() {
   const [success, setSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login } = useAuth();
+  const auth = useAuth(); // Get the whole context first
+  const login = auth?.login; // Safely access login
 
   // Handle OAuth success redirect
   useEffect(() => {
-    const oauthSuccess = searchParams?.get('oauth_success');
+    // Safety check for searchParams
+    if (!searchParams) return;
+
+    const oauthSuccess = searchParams.get('oauth_success');
     if (oauthSuccess === 'true') {
-      const userName = searchParams?.get('name') || 'User';
-      const userRole = searchParams?.get('role') || 'CUSTOMER';
+      const userName = searchParams.get('name') || 'User';
+      const userRole = searchParams.get('role') || 'CUSTOMER';
       
       setSuccess(true);
       setSuccessMessage(`Welcome back, ${userName}! Login successful. Redirecting...`);
@@ -45,6 +53,12 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setIsLoading(true);
+
+    if (!login) {
+      setError('Auth service not available. Please try again later.');
+      setIsLoading(false);
+      return;
+    }
 
     try {
       await login(email, password);
@@ -207,3 +221,17 @@ export default function LoginPage() {
   );
 }
 
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="inline-block w-12 h-12 border-4 border-gray-200 border-t-[#1e3c72] rounded-full animate-spin"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
+  );
+}
