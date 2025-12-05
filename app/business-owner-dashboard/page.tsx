@@ -443,20 +443,20 @@ export default function DashboardPage() {
 
           {/* Recent Discussions Section */}
           {recentDiscussions.length > 0 && (
-            <div className="bg-[#2a2a2a] rounded-xl p-6 border border-white/10">
-              <div className="text-xl font-bold text-white mb-6">Recent Discussions</div>
-              <div className="space-y-4">
+            <div className="bg-[#2a2a2a] rounded-xl p-4 sm:p-6 border border-white/10 overflow-x-hidden">
+              <div className="text-lg sm:text-xl font-bold text-white mb-4 sm:mb-6">Recent Discussions</div>
+              <div className="space-y-3 sm:space-y-4">
                 {recentDiscussions.map((discussion) => (
-                  <div key={discussion.id} className="border-l-4 border-[#6ab8d8] pl-4 py-2">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-white">{discussion.user.name}</span>
-                        <span className="text-sm text-white/60">on</span>
-                        <span className="font-medium text-[#6ab8d8]">{discussion.business?.name || 'Business'}</span>
+                  <div key={discussion.id} className="border-l-4 border-[#6ab8d8] pl-3 sm:pl-4 py-2 sm:py-3">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 min-w-0">
+                        <span className="font-semibold text-white text-sm sm:text-base break-words">{discussion.user.name}</span>
+                        <span className="text-xs sm:text-sm text-white/60">on</span>
+                        <span className="font-medium text-[#6ab8d8] text-sm sm:text-base break-words">{discussion.business?.name || 'Business'}</span>
                       </div>
-                      <span className="text-sm text-white/60">{formatDate(discussion.createdAt)}</span>
+                      <span className="text-xs sm:text-sm text-white/60 whitespace-nowrap">{formatDate(discussion.createdAt)}</span>
                     </div>
-                    <p className="text-white/80 text-sm line-clamp-2">{discussion.content}</p>
+                    <p className="text-white/80 text-xs sm:text-sm line-clamp-2 break-words">{discussion.content}</p>
                   </div>
                 ))}
               </div>

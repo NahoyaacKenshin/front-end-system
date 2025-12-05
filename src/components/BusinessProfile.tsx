@@ -1569,7 +1569,7 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
       {/* Discussions Section - Separate container at bottom */}
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 md:px-8 pb-6 sm:pb-8 md:pb-10">
         <div className="bg-[#2a2a2a] rounded-[20px] p-4 sm:p-6 shadow-[0_8px_30px_rgba(0,0,0,0.4)] border border-white/5">
-          <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Discussions</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Community Discussions</h2>
           
           {/* Create Discussion Form */}
           {user ? (

@@ -64,6 +64,7 @@ class ApiService {
       headers: {
         'Content-Type': 'application/json',
       },
+      timeout: 30000, // 30 second timeout for all requests
     });
 
     // Request interceptor to add auth token
@@ -141,11 +142,6 @@ class ApiService {
 
   async verifyEmail(token: string): Promise<ServiceResponse> {
     const response = await this.api.get('/auth/v1/verify-email', { params: { token } });
-    return response.data;
-  }
-
-  async resendEmailVerification(email: string): Promise<ServiceResponse> {
-    const response = await this.api.post('/auth/v1/resend-email-verification', { email });
     return response.data;
   }
 

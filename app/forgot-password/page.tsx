@@ -37,19 +37,25 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden md:flex-col">
-      <div className="flex-1 flex items-center justify-center text-white relative bg-gradient-to-br from-black/40 to-black/40 bg-cover bg-center bg-[url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&q=80')] md:min-h-[300px]">
-        <div className="text-left p-10 z-10">
+    <div className="flex min-h-screen h-auto overflow-visible md:flex-row flex-col">
+      <div className="flex-1 flex items-center justify-center text-white relative md:min-h-[300px] overflow-hidden">
+        <img 
+          src="/Parola.jpg" 
+          alt="Background" 
+          className="absolute inset-0 w-full h-full object-cover brightness-[0.6] z-0"
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-black/40 to-black/40 z-[1]"></div>
+        <div className="text-left p-10 z-10 relative">
           <h2 className="text-3xl font-light mb-2.5 tracking-[2px]">Discover</h2>
           <h1 className="text-5xl md:text-[3.5rem] font-bold leading-tight tracking-[3px]">CORDOVA'S<br />LOCAL TREASURE</h1>
         </div>
       </div>
-      <div className="flex-1 bg-gray-50 flex flex-col p-10 overflow-y-auto md:p-[30px_20px]">
-        <div className="flex items-center gap-4 mb-15">
-          <img src="/logo.png" alt="Logo" className="w-12 h-12 rounded-full bg-gradient-to-br from-[#1e3c72] to-[#2a5298]" />
+      <div className="flex-1 bg-gray-50 flex flex-col p-10 overflow-y-visible overflow-x-hidden justify-start min-h-screen md:p-[30px_20px]">
+        <div className="flex items-center gap-4 mb-8 sm:mb-12 md:mb-[60px]">
+          <img src="/logo.jpg" alt="Logo" className="w-12 h-12 rounded-full bg-gradient-to-br from-[#1e3c72] to-[#2a5298]" />
           <h3 className="text-2xl text-[#1e3c72] font-semibold">LOCAFY</h3>
         </div>
-        <div className="max-w-[450px] w-full mx-auto flex flex-col justify-center flex-1 relative">
+        <div className="max-w-[450px] w-full mx-auto relative box-border flex flex-col py-5">
           <button className="absolute top-0 left-0 bg-transparent border-none text-[#1e3c72] cursor-pointer p-2.5 flex items-center justify-center rounded-full transition-all duration-300 ease-in-out z-10 hover:bg-[#1e3c72]/10 hover:-translate-x-1" onClick={handleBack}>
             <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
               <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
@@ -57,17 +63,17 @@ export default function ForgotPasswordPage() {
           </button>
           {!submitted ? (
             <>
-              <h2 className="text-[2.2rem] mb-2.5 text-[#1a1a1a] text-center">FORGOT PASSWORD</h2>
+              <h2 className="text-4xl mb-2.5 text-[#1a1a1a] text-center mt-10">FORGOT PASSWORD</h2>
               <p className="text-center text-gray-600 mb-10 text-[0.95rem]">Enter your email to reset your password</p>
               
               {error && (
-                <div className="py-3 px-4 mb-4 bg-red-100 text-red-800 border border-red-200 rounded-lg text-sm text-center animate-slide-in">
+                <div className="py-3 px-4 mb-4 bg-red-100 text-red-800 border border-red-200 rounded-lg text-[0.95rem] text-center animate-slide-in">
                   {error}
                 </div>
               )}
               
-              <form onSubmit={handleSubmit}>
-                <div className="mb-7.5">
+              <form onSubmit={handleSubmit} className="w-full box-border flex flex-col pb-10 mb-5">
+                <div className="mb-5">
                   <input
                     type="email"
                     placeholder="Email"
@@ -79,24 +85,24 @@ export default function ForgotPasswordPage() {
                   />
                 </div>
                 
-                <button type="submit" className="w-full py-4 border-none rounded-xl bg-gradient-to-br from-[#0f4c75] to-[#1b627d] text-white text-lg font-semibold cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(15,76,117,0.3)] disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading}>
+                <button type="submit" className="w-full py-4 border-none rounded-xl bg-gradient-to-br from-[#0f4c75] to-[#1b627d] text-white text-lg font-semibold cursor-pointer transition-all duration-200 box-border block m-0 min-h-[54px] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(15,76,117,0.3)] disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading}>
                   {isLoading ? 'Sending...' : 'Reset Password'}
                 </button>
               </form>
               
-              <p className="text-center mt-6 text-gray-600 text-[0.95rem]">
-                Remember your password? <Link href="/login" className="text-[#1e3c72] no-underline font-semibold hover:underline">Log in</Link>
+              <p className="text-center mt-5 mb-5 text-gray-600 text-[0.95rem] pb-5">
+                Remember your password? <Link href="/login" className="text-red-600 no-underline font-semibold hover:underline">Log in</Link>
               </p>
             </>
           ) : (
             <div className="text-center py-10 px-5 animate-fade-in">
-              <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-green-600 to-green-500 rounded-full flex items-center justify-center text-white shadow-[0_4px_20px_rgba(39,174,96,0.3)] animate-scale-in">
+              <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-[#1e3c72] to-[#2a5298] rounded-full flex items-center justify-center text-white shadow-[0_4px_20px_rgba(30,60,114,0.3)] animate-scale-in">
                 <svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                  <polyline points="22,6 12,13 2,6"></polyline>
                 </svg>
               </div>
-              <h2 className="text-green-600 mb-4 text-3xl font-bold">Check Your Email</h2>
+              <h2 className="text-[#1e3c72] mb-4 text-3xl font-bold">Check Your Email</h2>
               <p className="text-gray-600 mb-2 text-base leading-relaxed">
                 We've sent a password reset link to
               </p>
@@ -106,7 +112,7 @@ export default function ForgotPasswordPage() {
                 The link will expire in 1 hour.
               </p>
               <div className="flex flex-col gap-3 items-center">
-                <Link href="/login" className="inline-block py-3.5 px-10 bg-gradient-to-br from-[#0f4c75] to-[#1b627d] text-white no-underline rounded-xl font-semibold transition-all duration-200 w-full max-w-[300px] text-center hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(15,76,117,0.3)]">
+                <Link href="/login" className="inline-block py-3 px-8 bg-transparent text-[#1e3c72] border-2 border-[#1e3c72] rounded-xl font-semibold no-underline transition-all duration-300 w-full max-w-[300px] text-center text-[0.95rem] hover:bg-[#1e3c72] hover:text-white hover:-translate-y-0.5">
                   Back to Login
                 </Link>
                 <button 

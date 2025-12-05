@@ -13,8 +13,6 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [verificationSent, setVerificationSent] = useState(false);
-  const [resendLoading, setResendLoading] = useState(false);
-  const [resendSuccess, setResendSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { signup } = useAuth();
@@ -28,7 +26,6 @@ export default function RegisterPage() {
     try {
       await signup(name, email, password);
       setVerificationSent(true);
-      setResendSuccess(false);
     } catch (err: any) {
       console.error('Signup error:', err);
       const errorMessage = err.response?.data?.message || err.message || 'Registration failed';
@@ -41,26 +38,6 @@ export default function RegisterPage() {
       }
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleResendVerification = async () => {
-    setResendLoading(true);
-    setResendSuccess(false);
-    setError('');
-
-    try {
-      const response = await api.resendEmailVerification(email);
-      if (response.status === 'success') {
-        setResendSuccess(true);
-      } else {
-        setError(response.message || 'Failed to resend verification email');
-      }
-    } catch (err: any) {
-      console.error('Resend verification error:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to resend verification email. Please try again.');
-    } finally {
-      setResendLoading(false);
     }
   };
 
@@ -190,24 +167,9 @@ export default function RegisterPage() {
                 </div>
               )}
               
-              {resendSuccess && (
-                <div className="py-3 px-4 mb-4 bg-green-100 text-[#27ae60] border border-green-200 rounded-lg text-[0.95rem] text-center animate-slide-in">
-                  Verification email resent successfully!
-                </div>
-              )}
-              
-              <div className="flex flex-col gap-3 items-center">
-                <button 
-                  className="w-full max-w-[300px] py-3.5 px-8 bg-gradient-to-br from-[#0f4c75] to-[#1b627d] text-white border-none rounded-xl font-semibold cursor-pointer transition-all duration-200 text-base hover:not-disabled:-translate-y-0.5 hover:not-disabled:shadow-[0_6px_20px_rgba(15,76,117,0.3)] disabled:opacity-60 disabled:cursor-not-allowed" 
-                  onClick={handleResendVerification}
-                  disabled={resendLoading}
-                >
-                  {resendLoading ? 'Sending...' : 'Resend Verification Email'}
-                </button>
-                <Link href="/login" className="inline-block py-3 px-8 bg-transparent text-[#1e3c72] border-2 border-[#1e3c72] rounded-xl font-semibold no-underline transition-all duration-300 w-full max-w-[300px] text-center text-[0.95rem] hover:bg-[#1e3c72] hover:text-white hover:-translate-y-0.5">
-                  Go to Login
-                </Link>
-              </div>
+              <Link href="/login" className="inline-block py-3 px-8 bg-transparent text-[#1e3c72] border-2 border-[#1e3c72] rounded-xl font-semibold no-underline transition-all duration-300 w-full max-w-[300px] text-center text-[0.95rem] hover:bg-[#1e3c72] hover:text-white hover:-translate-y-0.5 mx-auto">
+                Go to Login
+              </Link>
             </div>
           )}
         </div>
