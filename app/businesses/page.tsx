@@ -29,7 +29,7 @@ function BusinessesContent() {
   const [favoriteBusinessIds, setFavoriteBusinessIds] = useState<Set<number>>(new Set());
   const [favoriteCounts, setFavoriteCounts] = useState<Map<number, number>>(new Map());
   const [loadingFavoriteCounts, setLoadingFavoriteCounts] = useState<boolean>(false);
-  const [sortOption, setSortOption] = useState<SortOption>('newest');
+  const [sortOption, setSortOption] = useState<SortOption>('newest'); 
   
   // Mobile dropdown states
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState<boolean>(false);

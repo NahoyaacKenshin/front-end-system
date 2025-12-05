@@ -841,11 +841,11 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-[#1e3c72] to-[#2a5298]"></div>
         )}
         {canEdit && (
-          <label className="absolute bottom-20 right-4 sm:bottom-24 md:bottom-28 px-3 py-1.5 sm:px-4 sm:py-2 bg-black/70 hover:bg-black/90 backdrop-blur-sm text-white rounded-lg font-medium cursor-pointer transition-all z-10 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
-            <svg viewBox="0 0 24 24" className="w-4 h-4 sm:w-[18px] sm:h-[18px]" fill="currentColor">
+          <label className="absolute bottom-20 right-4 sm:bottom-24 md:bottom-28 p-2.5 sm:px-4 sm:py-2 bg-black/70 hover:bg-black/90 backdrop-blur-sm text-white rounded-lg font-medium cursor-pointer transition-all z-10 flex items-center gap-0 sm:gap-2">
+            <svg viewBox="0 0 24 24" width="20" height="20" className="sm:w-[18px] sm:h-[18px]" fill="currentColor">
               <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
             </svg>
-            <span className="whitespace-nowrap">
+            <span className="hidden sm:inline whitespace-nowrap">
               {uploadingCoverPhoto ? 'Uploading...' : 'Change Cover Photo'}
             </span>
             <input
