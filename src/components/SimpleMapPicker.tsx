@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 
-// FIX: Declare types globally so you don't get the 'L' error
+// FIX: Declare types globally
 declare global {
   interface Window {
     L: any;
@@ -43,7 +43,8 @@ export default function SimpleMapPicker({
     [CEBU_BOUNDS_OPTS.maxLat, CEBU_BOUNDS_OPTS.maxLng],
   ];
 
-  const DEFAULT_CENTER: [number, number] = [10.3157, 123.8854]; // Cebu City Capitol area
+  // UPDATED: Default center is now Cordova, Cebu
+  const DEFAULT_CENTER: [number, number] = [10.2518, 123.9486]; 
 
   // Helper to check if a coordinate is valid within our specific region
   const isWithinCebu = (latitude: number, longitude: number) => {
@@ -78,16 +79,12 @@ export default function SimpleMapPicker({
     if (!isLoaded || !mapRef.current || !window.L) return;
 
     // --- CRITICAL FIX: DESTROY OLD MAP ---
-    // If a map instance already exists, remove it before creating a new one.
-    // This ensures the new settings (bounds/zoom) are actually applied.
     if (mapInstanceRef.current) {
       mapInstanceRef.current.remove();
       mapInstanceRef.current = null;
     }
 
     // --- CRITICAL FIX: VALIDATE COORDINATES ---
-    // If the prop `lat` is passed as 14.5 (Manila), we IGNORE it.
-    // We only use the prop if it is actually inside Cebu.
     let startLat = DEFAULT_CENTER[0];
     let startLng = DEFAULT_CENTER[1];
 
@@ -99,7 +96,7 @@ export default function SimpleMapPicker({
     // Create Map
     const map = window.L.map(mapRef.current, {
       center: [startLat, startLng],
-      zoom: 13,
+      zoom: 14, // Slightly closer zoom for Cordova town proper
       minZoom: 12,
       maxZoom: 18,
       maxBounds: CEBU_BOUNDS,
@@ -112,7 +109,7 @@ export default function SimpleMapPicker({
 
     mapInstanceRef.current = map;
 
-    // Place Initial Marker (only if we have valid coordinates)
+    // Place Initial Marker (only if we have valid coordinates passed as props)
     if (lat && lng && isWithinCebu(lat, lng)) {
       const marker = window.L.marker([lat, lng], { draggable: !disabled }).addTo(map);
       markerRef.current = marker;
@@ -171,10 +168,4 @@ export default function SimpleMapPicker({
       )}
     </div>
   );
-}
-
-declare global {
-  interface Window {
-    L: any;
-  }
 }
