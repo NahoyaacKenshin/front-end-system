@@ -43,66 +43,52 @@ export default function DashboardPage() {
       try {
         setLoading(true);
         
-        // Load user's businesses
+        // 1. Load user's businesses first
         const businessesResponse = await api.getMyBusinesses();
         const userBusinesses = businessesResponse.data?.businesses || [];
         setBusinesses(userBusinesses);
 
-        // Calculate statistics
-        let totalFavorites = 0;
-        let totalDiscussions = 0;
-        let verifiedCount = 0;
-        let pendingCount = 0;
-
-        // Fetch favorite counts and discussions for each business
-        const businessStatsPromises = userBusinesses.map(async (business: Business) => {
+        // 2. Fetch details for all businesses in parallel (Optimization: Fetch once, use twice)
+        const businessDetailsPromises = userBusinesses.map(async (business: Business) => {
           try {
             const [favoriteResponse, discussionsResponse] = await Promise.all([
               api.getBusinessFavoriteCount(business.id),
               api.getBusinessDiscussions(business.id)
             ]);
             
-            const favoriteCount = favoriteResponse.data?.count || 0;
-            const discussions = discussionsResponse.data || [];
-            
-            totalFavorites += favoriteCount;
-            totalDiscussions += Array.isArray(discussions) ? discussions.length : 0;
-            
-            if (business.isVerified) {
-              verifiedCount++;
-            } else {
-              pendingCount++;
-            }
+            return {
+              businessId: business.id,
+              business: business, // Pass the business object along
+              favorites: favoriteResponse.data?.count || 0,
+              discussions: Array.isArray(discussionsResponse.data) ? discussionsResponse.data : []
+            };
           } catch (error) {
-            console.error(`Error loading stats for business ${business.id}:`, error);
+            console.error(`Error loading details for business ${business.id}:`, error);
+            return { businessId: business.id, business, favorites: 0, discussions: [] };
           }
         });
 
-        await Promise.all(businessStatsPromises);
+        const results = await Promise.all(businessDetailsPromises);
 
-        // Get recent discussions across all businesses
+        // 3. Calculate Totals from results
+        const totalFavorites = results.reduce((sum, item) => sum + item.favorites, 0);
+        const totalDiscussions = results.reduce((sum, item) => sum + item.discussions.length, 0);
+
+        // 4. Extract and Sort Discussions from the SAME results (No re-fetching)
         const allDiscussions: Discussion[] = [];
-        for (const business of userBusinesses) {
-          try {
-            const discussionsResponse = await api.getBusinessDiscussions(business.id);
-            const discussions = discussionsResponse.data || [];
-            if (Array.isArray(discussions)) {
-              discussions.forEach((disc: Discussion) => {
-                allDiscussions.push({ ...disc, business });
-              });
-            }
-          } catch (error) {
-            console.error(`Error loading discussions for business ${business.id}:`, error);
-          }
-        }
-        
-        // Sort by date and get most recent 5
+        results.forEach(item => {
+          item.discussions.forEach((disc: Discussion) => {
+            allDiscussions.push({ ...disc, business: item.business });
+          });
+        });
+
         const sortedDiscussions = allDiscussions.sort((a, b) => 
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         ).slice(0, 5);
+
         setRecentDiscussions(sortedDiscussions);
 
-        // Update stats
+        // 5. Update stats
         setStats([
           {
             id: 1,
@@ -180,91 +166,48 @@ export default function DashboardPage() {
       const response = await api.deleteBusiness(businessId);
       
       if (response.success) {
-        // Remove the business from the list
-        setBusinesses(prev => prev.filter(b => b.id !== businessId));
+        // Optimistic update: Remove from UI immediately so we don't need to reload everything
+        const updatedBusinesses = businesses.filter(b => b.id !== businessId);
+        setBusinesses(updatedBusinesses);
         
-        // Reload dashboard data to update stats
+        // We can just subtract from the stats roughly to avoid a full reload, 
+        // OR trigger a reload. Since you want it fast, let's trigger a reload but 
+        // the reload is now optimized.
+        
+        // Note: For a true instant feel, you would manually update the stats state here 
+        // by subtracting the deleted business's counts, but that requires storing per-business stats.
+        // For now, I'll trigger the standard reload which is now much faster.
+        
         const businessesResponse = await api.getMyBusinesses();
         const userBusinesses = businessesResponse.data?.businesses || [];
         setBusinesses(userBusinesses);
 
-        // Recalculate stats
-        let totalFavorites = 0;
-        let totalDiscussions = 0;
-
-        const businessStatsPromises = userBusinesses.map(async (business: Business) => {
-          try {
-            const [favoriteResponse, discussionsResponse] = await Promise.all([
-              api.getBusinessFavoriteCount(business.id),
-              api.getBusinessDiscussions(business.id)
-            ]);
-            
-            const favoriteCount = favoriteResponse.data?.count || 0;
-            const discussions = discussionsResponse.data || [];
-            
-            totalFavorites += favoriteCount;
-            totalDiscussions += Array.isArray(discussions) ? discussions.length : 0;
-          } catch (error) {
-            console.error(`Error loading stats for business ${business.id}:`, error);
-          }
+        // Recalculate stats (Using the optimized logic)
+        const businessDetailsPromises = userBusinesses.map(async (business: Business) => {
+            try {
+              const [favoriteResponse, discussionsResponse] = await Promise.all([
+                api.getBusinessFavoriteCount(business.id),
+                api.getBusinessDiscussions(business.id)
+              ]);
+              return {
+                favorites: favoriteResponse.data?.count || 0,
+                discussions: Array.isArray(discussionsResponse.data) ? discussionsResponse.data : []
+              };
+            } catch (error) {
+              return { favorites: 0, discussions: [] };
+            }
         });
 
-        await Promise.all(businessStatsPromises);
+        const results = await Promise.all(businessDetailsPromises);
+        const totalFavorites = results.reduce((sum, item) => sum + item.favorites, 0);
+        const totalDiscussions = results.reduce((sum, item) => sum + item.discussions.length, 0);
 
         // Update stats
-        setStats([
-          {
-            id: 1,
-            title: 'My Businesses',
-            value: userBusinesses.length,
-            icon: (
-              <svg viewBox="0 0 24 24" width="40" height="40" fill="#6ab8d8">
-                <path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/>
-              </svg>
-            )
-          },
-          {
-            id: 2,
-            title: 'Total Favorites',
-            value: totalFavorites,
-            icon: (
-              <svg viewBox="0 0 24 24" width="40" height="40" fill="#6ab8d8">
-                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-              </svg>
-            )
-          },
-          {
-            id: 3,
-            title: 'Total Discussions',
-            value: totalDiscussions,
-            icon: (
-              <svg viewBox="0 0 24 24" width="40" height="40" fill="#6ab8d8">
-                <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
-              </svg>
-            )
-          }
+        setStats(prevStats => [
+          { ...prevStats[0], value: userBusinesses.length },
+          { ...prevStats[1], value: totalFavorites },
+          { ...prevStats[2], value: totalDiscussions }
         ]);
-
-        // Reload recent discussions
-        const allDiscussions: Discussion[] = [];
-        for (const business of userBusinesses) {
-          try {
-            const discussionsResponse = await api.getBusinessDiscussions(business.id);
-            const discussions = discussionsResponse.data || [];
-            if (Array.isArray(discussions)) {
-              discussions.forEach((disc: Discussion) => {
-                allDiscussions.push({ ...disc, business });
-              });
-            }
-          } catch (error) {
-            console.error(`Error loading discussions for business ${business.id}:`, error);
-          }
-        }
-        
-        const sortedDiscussions = allDiscussions.sort((a, b) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        ).slice(0, 5);
-        setRecentDiscussions(sortedDiscussions);
 
         alert('Business deleted successfully');
       } else {
