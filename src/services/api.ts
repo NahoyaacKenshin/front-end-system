@@ -67,11 +67,53 @@ class ApiService {
       timeout: 30000, // 30 second timeout for all requests
     });
 
-    // Request interceptor to add auth token
+    // Utility function to decode JWT and get expiration
+    const getTokenExpiration = (token: string): number | null => {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.exp ? payload.exp * 1000 : null; // Convert to milliseconds
+      } catch {
+        return null;
+      }
+    };
+
+    // Check if token is expired or will expire soon (within 2 minutes)
+    const isTokenExpiringSoon = (token: string | null): boolean => {
+      if (!token) return true;
+      const expiration = getTokenExpiration(token);
+      if (!expiration) return true;
+      const twoMinutesFromNow = Date.now() + 2 * 60 * 1000; // 2 minutes buffer
+      return expiration <= twoMinutesFromNow;
+    };
+
+    // Request interceptor to add auth token and refresh if needed
     this.api.interceptors.request.use(
-      (config: InternalAxiosRequestConfig) => {
+      async (config: InternalAxiosRequestConfig) => {
         if (typeof window !== 'undefined') {
-          const token = localStorage.getItem('accessToken');
+          let token = localStorage.getItem('accessToken');
+          const refreshToken = localStorage.getItem('refreshToken');
+
+          // Proactively refresh token if it's expiring soon
+          if (token && refreshToken && isTokenExpiringSoon(token)) {
+            try {
+              const response = await axios.post(`${API_BASE_URL}/auth/v1/refresh-token`, {
+                refreshToken,
+              });
+
+              if (response.data?.status === 'success' && response.data?.data?.tokens) {
+                const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data.data.tokens;
+                localStorage.setItem('accessToken', newAccessToken);
+                if (newRefreshToken) {
+                  localStorage.setItem('refreshToken', newRefreshToken);
+                }
+                token = newAccessToken;
+              }
+            } catch (refreshError) {
+              console.error('Proactive token refresh failed:', refreshError);
+              // Don't block the request, let it proceed and handle 401 in response interceptor
+            }
+          }
+
           if (token && config.headers) {
             config.headers.Authorization = `Bearer ${token}`;
           }
@@ -93,27 +135,49 @@ class ApiService {
           try {
             if (typeof window !== 'undefined') {
               const refreshToken = localStorage.getItem('refreshToken');
-              if (refreshToken) {
-                const response = await axios.post(`${API_BASE_URL}/auth/v1/refresh-token`, {
-                  refreshToken,
-                });
+              if (!refreshToken) {
+                // No refresh token, redirect to login
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                localStorage.removeItem('user');
+                window.location.href = '/login';
+                return Promise.reject(error);
+              }
 
-                const { accessToken } = response.data.data.tokens;
+              const response = await axios.post(`${API_BASE_URL}/auth/v1/refresh-token`, {
+                refreshToken,
+              });
+
+              if (response.data?.status === 'success' && response.data?.data?.tokens) {
+                const { accessToken, refreshToken: newRefreshToken } = response.data.data.tokens;
+                
+                // Save both new tokens
                 localStorage.setItem('accessToken', accessToken);
+                if (newRefreshToken) {
+                  localStorage.setItem('refreshToken', newRefreshToken);
+                }
 
+                // Update the original request with new token
                 if (originalRequest.headers) {
                   originalRequest.headers.Authorization = `Bearer ${accessToken}`;
                 }
 
                 return this.api(originalRequest);
+              } else {
+                console.error('Invalid refresh response:', response.data);
+                throw new Error(response.data?.message || 'Invalid refresh response');
               }
             }
           } catch (refreshError) {
+            console.error('Token refresh failed:', refreshError);
             if (typeof window !== 'undefined') {
               localStorage.removeItem('accessToken');
               localStorage.removeItem('refreshToken');
               localStorage.removeItem('user');
-              window.location.href = '/login';
+              // Only redirect if we're not already on login page
+              if (window.location.pathname !== '/login') {
+                window.location.href = '/login';
+              }
             }
             return Promise.reject(refreshError);
           }

@@ -17,9 +17,60 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Utility function to decode JWT and get expiration
+const getTokenExpiration = (token: string): number | null => {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.exp ? payload.exp * 1000 : null; // Convert to milliseconds
+  } catch {
+    return null;
+  }
+};
+
+// Check if token is expired or will expire soon (within 2 minutes)
+const isTokenExpiringSoon = (token: string | null): boolean => {
+  if (!token) return true;
+  const expiration = getTokenExpiration(token);
+  if (!expiration) return true;
+  const twoMinutesFromNow = Date.now() + 2 * 60 * 1000; // 2 minutes buffer
+  return expiration <= twoMinutesFromNow;
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Proactive token refresh function
+  const refreshTokenIfNeeded = async (): Promise<boolean> => {
+    try {
+      const accessToken = localStorage.getItem('accessToken');
+      const refreshToken = localStorage.getItem('refreshToken');
+
+      if (!refreshToken) {
+        return false;
+      }
+
+      // Check if access token is expiring soon
+      if (isTokenExpiringSoon(accessToken)) {
+        const response = await api.refreshToken(refreshToken);
+        
+        if (response.status === 'success' && response.data?.tokens) {
+          const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data.tokens;
+          localStorage.setItem('accessToken', newAccessToken);
+          if (newRefreshToken) {
+            localStorage.setItem('refreshToken', newRefreshToken);
+          }
+          return true;
+        }
+      }
+      return true;
+    } catch (error) {
+      console.error('Error refreshing token:', error);
+      // If refresh fails, clear tokens but don't redirect immediately
+      // Let the interceptor handle it on the next API call
+      return false;
+    }
+  };
 
   useEffect(() => {
     const loadUser = async () => {
@@ -28,6 +79,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const accessToken = localStorage.getItem('accessToken');
 
         if (storedUser && accessToken) {
+          // Check if token needs refresh on load
+          await refreshTokenIfNeeded();
           setUser(JSON.parse(storedUser));
         }
       } catch (error) {
@@ -41,6 +94,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     loadUser();
+
+    // Set up interval to check and refresh token every 5 minutes
+    const tokenRefreshInterval = setInterval(async () => {
+      if (localStorage.getItem('accessToken')) {
+        await refreshTokenIfNeeded();
+      }
+    }, 5 * 60 * 1000); // Check every 5 minutes
+
+    return () => {
+      clearInterval(tokenRefreshInterval);
+    };
   }, []);
 
   const login = async (email: string, password: string): Promise<void> => {
