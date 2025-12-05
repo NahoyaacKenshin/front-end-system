@@ -7,6 +7,7 @@ import { api } from '../../../src/services/api';
 import { CATEGORY_LIST } from '../../../src/constants/categories';
 import { BARANGAYS } from '../../../src/constants/barangays';
 import Navbar from '../../../src/components/Layout/Navbar';
+import { fileToBase64 } from '../../../src/utils/imageOptimization';
 
 type ContactType = 'email' | 'phone';
 
@@ -107,21 +108,6 @@ export default function AddBusinessPage() {
     setVerificationDocumentPreview('');
   };
 
-  // Convert file to base64
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (reader.result) {
-          resolve(reader.result as string);
-        } else {
-          reject(new Error('Failed to read file'));
-        }
-      };
-      reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsDataURL(file);
-    });
-  };
 
   const validateForm = (): boolean => {
     if (!formData.name.trim()) {
