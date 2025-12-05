@@ -89,7 +89,7 @@ export default function FavoritesPage() {
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 pt-24 sm:pt-28 pb-6 sm:pb-8">
         {/* Header */}
-        <div className="mb-6 sm:mb-8">
+        <div className="mt-1 sm:mt-8 mb-6 sm:mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">My Favorites</h1>
           <p className="text-white/60">All your favorite businesses in one place</p>
         </div>

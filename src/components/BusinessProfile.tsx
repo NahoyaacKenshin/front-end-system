@@ -103,7 +103,8 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
             try {
               const favoriteResponse = await api.checkFavorite(id);
               if (favoriteResponse.success && favoriteResponse.data) {
-                setIsFavorite(favoriteResponse.data.isFavorite || false);
+                // Backend returns 'isFavorited', not 'isFavorite'
+                setIsFavorite(favoriteResponse.data.isFavorited || false);
               }
             } catch (err) {
               // Silently fail favorite check
@@ -688,11 +689,17 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
       const response = await api.toggleFavorite(business.id);
       
       if (response.success) {
-        const newFavoriteState = !isFavorite;
-        setIsFavorite(newFavoriteState);
-        
-        // Update favorite count
-        setFavoriteCount(prev => newFavoriteState ? prev + 1 : prev - 1);
+        // Refresh favorite status from server to ensure accuracy
+        try {
+          const favoriteResponse = await api.checkFavorite(business.id);
+          if (favoriteResponse.success && favoriteResponse.data) {
+            setIsFavorite(favoriteResponse.data.isFavorited || false);
+          }
+        } catch (err) {
+          console.error('Error refreshing favorite status:', err);
+          // Fallback to optimistic update if refresh fails
+          setIsFavorite(prev => !prev);
+        }
         
         // Refresh count from server to ensure accuracy
         try {
