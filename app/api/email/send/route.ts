@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
+import nodemailer, { SentMessageInfo } from 'nodemailer';
 
 // This endpoint acts as an email service proxy
 // It uses Vercel's serverless functions which may allow SMTP connections
@@ -67,11 +67,12 @@ export async function POST(request: NextRequest) {
     });
 
     // Add a timeout wrapper (50 seconds max to leave buffer for Vercel)
-    const timeoutPromise = new Promise((_, reject) => {
+    const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => reject(new Error('Email sending timeout after 50 seconds')), 50000);
     });
 
-    const info = await Promise.race([emailPromise, timeoutPromise]);
+    // Type assertion: Promise.race will resolve with emailPromise result (or reject with timeout)
+    const info = (await Promise.race([emailPromise, timeoutPromise])) as SentMessageInfo;
 
     console.log(`✓ Email sent successfully via Vercel to: ${to} (Message ID: ${info.messageId})`);
 
