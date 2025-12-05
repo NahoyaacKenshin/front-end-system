@@ -75,7 +75,7 @@ interface Verification {
 
 export default function AdminPage() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -108,18 +108,28 @@ export default function AdminPage() {
   const [selectedDocument, setSelectedDocument] = useState<string | null>(null);
   const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
 
-  // Check if user is admin
+  // Check if user is admin - wait for auth to load first
   useEffect(() => {
+    // Don't check authentication until AuthContext has finished loading
+    if (authLoading) {
+      return;
+    }
+
+    // Check if user is authenticated
     if (!user) {
       router.push('/login');
       return;
     }
+
+    // Check if user is admin
     if (user.role !== 'ADMIN') {
       router.push('/home');
       return;
     }
+
+    // User is admin, load dashboard stats
     loadDashboardStats();
-  }, [user, router]);
+  }, [user, authLoading, router]);
 
   // Load data based on active tab
   useEffect(() => {
@@ -394,6 +404,19 @@ export default function AdminPage() {
     return lowerUrl.includes('.pdf') || lowerUrl.startsWith('data:application/pdf');
   };
 
+  // Show loading state while auth is loading
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center">
+        <div className="text-center text-white">
+          <div className="inline-block w-12 h-12 border-4 border-white/20 border-t-[#6ab8d8] rounded-full animate-spin"></div>
+          <p className="mt-4 text-lg">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect if not authenticated or not admin (handled in useEffect, but show nothing while redirecting)
   if (!user || user.role !== 'ADMIN') {
     return null;
   }
