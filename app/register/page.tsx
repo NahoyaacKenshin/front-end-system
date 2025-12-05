@@ -23,8 +23,14 @@ export default function RegisterPage() {
     setVerificationSent(false);
     setIsLoading(true);
 
+    const formattedName = name
+                        .trim()
+                        .split(' ')
+                        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                        .join(' ');
+
     try {
-      await signup(name, email, password);
+      await signup(formattedName, email, password);
       setVerificationSent(true);
     } catch (err: any) {
       console.error('Signup error:', err);
