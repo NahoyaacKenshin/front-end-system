@@ -33,8 +33,10 @@ export default function DashboardPage() {
   const { user, logout } = useAuth();
   
   // Get user's name from auth context, fallback to 'User' if not available
-const rawName = user?.name || 'User';
-const userName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+  const userName = (user?.name || 'User')
+                    .split(' ')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ');
 
   // Load dashboard data
   useEffect(() => {
