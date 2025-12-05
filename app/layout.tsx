@@ -10,7 +10,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <title>Locafy</title>
-        <link rel="icon" href="logo.jpg" />
+        <link rel="icon" href="logocircle.png" />
       </head>
       <body>
         <AuthProvider>
