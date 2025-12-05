@@ -76,7 +76,7 @@ export default function FavoritesPage() {
   };
 
   const handleViewBusiness = (businessId: number) => {
-    router.push(`/business/${businessId}`);
+    router.push(`/business/${businessId}?mode=view`);
   };
 
   if (!user) {
