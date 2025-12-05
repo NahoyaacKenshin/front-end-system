@@ -103,8 +103,7 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
             try {
               const favoriteResponse = await api.checkFavorite(id);
               if (favoriteResponse.success && favoriteResponse.data) {
-                // Backend returns 'isFavorited', not 'isFavorite'
-                setIsFavorite(favoriteResponse.data.isFavorited || false);
+                setIsFavorite(favoriteResponse.data.isFavorite || false);
               }
             } catch (err) {
               // Silently fail favorite check
@@ -689,17 +688,11 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
       const response = await api.toggleFavorite(business.id);
       
       if (response.success) {
-        // Refresh favorite status from server to ensure accuracy
-        try {
-          const favoriteResponse = await api.checkFavorite(business.id);
-          if (favoriteResponse.success && favoriteResponse.data) {
-            setIsFavorite(favoriteResponse.data.isFavorited || false);
-          }
-        } catch (err) {
-          console.error('Error refreshing favorite status:', err);
-          // Fallback to optimistic update if refresh fails
-          setIsFavorite(prev => !prev);
-        }
+        const newFavoriteState = !isFavorite;
+        setIsFavorite(newFavoriteState);
+        
+        // Update favorite count
+        setFavoriteCount(prev => newFavoriteState ? prev + 1 : prev - 1);
         
         // Refresh count from server to ensure accuracy
         try {
@@ -848,7 +841,7 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-[#1e3c72] to-[#2a5298]"></div>
         )}
         {canEdit && (
-          <label className="absolute bottom-20 right-4 sm:bottom-24 md:bottom-28 p-2.5 sm:px-4 sm:py-2 bg-black/70 hover:bg-black/90 backdrop-blur-sm text-white rounded-lg font-medium cursor-pointer transition-all z-10 flex items-center gap-0 sm:gap-2">
+          <label className="absolute top-24 right-4 sm:top-28 sm:right-6 p-2.5 sm:px-4 sm:py-2 bg-black/70 hover:bg-black/90 backdrop-blur-sm text-white rounded-lg font-medium cursor-pointer transition-all z-10 flex items-center gap-0 sm:gap-2 shadow-lg">
             <svg viewBox="0 0 24 24" width="20" height="20" className="sm:w-[18px] sm:h-[18px]" fill="currentColor">
               <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
             </svg>
