@@ -102,16 +102,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }, 5 * 60 * 1000); // Check every 5 minutes
 
-    // Set up interval to refresh user data every 2 minutes to catch role changes
-    const userRefreshInterval = setInterval(async () => {
-      if (localStorage.getItem('accessToken')) {
-        await refreshUser();
-      }
-    }, 2 * 60 * 1000); // Check every 2 minutes
-
     return () => {
       clearInterval(tokenRefreshInterval);
-      clearInterval(userRefreshInterval);
     };
   }, []);
 
@@ -156,15 +148,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
+      // Get current user data to compare
+      const storedUser = localStorage.getItem('user');
+      const currentUser = storedUser ? JSON.parse(storedUser) : null;
+      const currentRole = currentUser?.role;
+
       // Fetch fresh user data from the API
       const response = await api.getCurrentUser();
       if (response.status === 'success' && response.data) {
         const userData = response.data;
-        localStorage.setItem('user', JSON.stringify(userData));
-        setUser(userData);
+        const newRole = userData.role;
+
+        // Only update if role has changed
+        if (currentRole && newRole && currentRole !== newRole) {
+          localStorage.setItem('user', JSON.stringify(userData));
+          setUser(userData);
+          console.log(`User role changed from ${currentRole} to ${newRole}`);
+        } else if (!currentUser) {
+          // If no current user, always set it
+          localStorage.setItem('user', JSON.stringify(userData));
+          setUser(userData);
+        }
+        // If role hasn't changed, don't update (no unnecessary re-renders)
       } else {
         // If API call fails, fall back to stored user
-        const storedUser = localStorage.getItem('user');
         if (storedUser) {
           setUser(JSON.parse(storedUser));
         }
