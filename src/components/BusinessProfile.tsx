@@ -232,142 +232,112 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
   };
 
   // Recursive component to render nested replies
-  const renderReply = (reply: Discussion, depth: number = 0, parentIndent: number = 0, parentReply?: Discussion) => {
-    // Responsive max depth: 2 on mobile, 3 on tablet, 5 on desktop
-    // This prevents UI breaking on mobile with deep nesting
-    const maxDepthMobile = 2;
-    const maxDepthTablet = 3;
-    const maxDepthDesktop = 5;
-    
+  const renderReply = (reply: Discussion, depth: number = 0, parentIndent: number = 0) => {
+    const maxDepth = 5; // Limit nesting depth to prevent UI issues
     // Base indent: 52px (to align with main discussion avatar + gap)
     // Main discussion has: 40px avatar + 12px gap = 52px
     // Each nested level adds: 40px (32px avatar + 12px gap) + 16px (border left padding)
-    // On mobile, reduce indentation significantly
     const baseIndent = 52; // Aligns with main discussion (40px avatar + 12px gap)
     const levelIndent = 40; // Reply avatar width (32px) + gap (12px)
     const borderPadding = 16; // Padding for the left border (pl-4 = 16px)
     
-    // Mobile: reduce indentation by 50%
-    const mobileBaseIndent = 28; // Reduced from 52px
-    const mobileLevelIndent = 20; // Reduced from 40px
-    const mobileBorderPadding = 8; // Reduced from 16px
-    
     // Calculate total indent based on depth and parent position
     let totalIndent: number;
-    let mobileTotalIndent: number;
     if (depth === 0) {
       // First level replies align with main discussion
       totalIndent = baseIndent;
-      mobileTotalIndent = mobileBaseIndent;
     } else {
       // Nested replies: parent indent + level indent + border padding
       totalIndent = parentIndent + levelIndent + borderPadding;
-      mobileTotalIndent = parentIndent * 0.5 + mobileLevelIndent + mobileBorderPadding;
     }
     
-    // Check if we've exceeded max depth - if so, flatten the display
-    const exceedsMaxDepth = depth >= maxDepthDesktop;
-    const exceedsMobileMaxDepth = depth >= maxDepthMobile;
-    
     return (
-      <div key={reply.id} className={depth > 0 ? 'mt-3 sm:mt-4' : ''}>
+      <div key={reply.id} className={depth > 0 ? 'mt-4' : ''}>
         {/* Reply Content */}
         <div 
-          className={`flex gap-2 sm:gap-3 ${exceedsMaxDepth ? 'opacity-90' : ''}`}
-          style={{ 
-            marginLeft: depth === 0 
-              ? `clamp(${mobileBaseIndent}px, ${baseIndent}px, ${baseIndent}px)` 
-              : `clamp(${mobileTotalIndent}px, ${totalIndent}px, ${totalIndent}px)`
-          }}
+          className="flex gap-3 min-w-fit" 
+          style={{ marginLeft: depth === 0 ? `${baseIndent}px` : `${totalIndent}px` }}
         >
           {reply.user.image ? (
             <img 
               src={reply.user.image} 
               alt={reply.user.name} 
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover flex-shrink-0"
+              className="w-8 h-8 rounded-full object-cover flex-shrink-0"
             />
           ) : (
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-[#667eea] to-[#764ba2] flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#667eea] to-[#764ba2] flex items-center justify-center flex-shrink-0">
               <span className="text-white font-semibold text-xs">
                 {reply.user.name.charAt(0).toUpperCase()}
               </span>
             </div>
           )}
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1">
-              {exceedsMaxDepth && parentReply && (
-                <span className="text-xs text-white/50 italic">
-                  in reply to {parentReply.user.name} →
-                </span>
-              )}
-              <h5 className="font-medium text-white text-xs sm:text-sm">{reply.user.name}</h5>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <h5 className="font-medium text-white text-sm">{reply.user.name}</h5>
               <span className="text-xs text-white/60">{formatDate(reply.createdAt)}</span>
             </div>
-            <p className="text-white/70 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap break-words mb-2">{reply.content}</p>
+            <p className="text-white/70 text-sm leading-relaxed whitespace-pre-wrap mb-2">{reply.content}</p>
             
             {/* Reply Button for nested replies */}
-            {user && !exceedsMaxDepth && (
+            {user && depth < maxDepth && (
               <button
                 onClick={() => setReplyingTo(replyingTo === reply.id ? null : reply.id)}
-                className="flex items-center gap-1.5 sm:gap-2 text-xs text-white/70 hover:text-[#6ab8d8] transition-colors"
+                className="flex items-center gap-2 text-xs text-white/70 hover:text-[#6ab8d8] transition-colors"
               >
-                <svg viewBox="0 0 24 24" width="12" height="12" className="sm:w-[14px] sm:h-[14px]" fill="currentColor">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                   <path d="M10 9V5l-7 7 7 7v-4c1.17 0 2.34.17 3.5.5 2.5 1 4.5 3.5 5.5 6.5 1.5-4.5 4-8.5 7-10.5-3-1-6-1-9 0z"/>
                 </svg>
-                <span className="hidden sm:inline">{replyingTo === reply.id ? 'Cancel Reply' : 'Reply'}</span>
-                <span className="sm:hidden">{replyingTo === reply.id ? 'Cancel' : 'Reply'}</span>
+                {replyingTo === reply.id ? 'Cancel Reply' : 'Reply'}
               </button>
             )}
           </div>
         </div>
 
         {/* Reply Form for nested replies */}
-        {user && replyingTo === reply.id && !exceedsMaxDepth && (
+        {user && replyingTo === reply.id && depth < maxDepth && (
           <div 
             className="mt-3" 
-            style={{ 
-              marginLeft: `clamp(${mobileTotalIndent}px, ${totalIndent}px, ${totalIndent}px)`
-            }}
+            style={{ marginLeft: `${totalIndent}px` }}
           >
-            <form onSubmit={(e) => { e.preventDefault(); handleReply(reply.id); }} className="flex gap-2 sm:gap-3">
+            <form onSubmit={(e) => { e.preventDefault(); handleReply(reply.id); }} className="flex gap-3">
               {user.image ? (
                 <img 
                   src={user.image} 
                   alt={user.name} 
-                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover flex-shrink-0"
+                  className="w-8 h-8 rounded-full object-cover flex-shrink-0"
                 />
               ) : (
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-[#667eea] to-[#764ba2] flex items-center justify-center flex-shrink-0">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#667eea] to-[#764ba2] flex items-center justify-center flex-shrink-0">
                   <span className="text-white font-semibold text-xs">
                     {user.name.charAt(0).toUpperCase()}
                   </span>
                 </div>
               )}
-              <div className="flex-1 min-w-0">
+              <div className="flex-1">
                 <textarea
                   value={replyContent[reply.id] || ''}
                   onChange={(e) => setReplyContent({ ...replyContent, [reply.id]: e.target.value })}
                   placeholder={`Reply to ${reply.user.name}...`}
-                  className="w-full p-2 bg-white/5 border border-white/10 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[#6ab8d8] focus:border-transparent text-white placeholder:text-white/50 text-xs sm:text-sm"
+                  className="w-full p-2 bg-white/5 border border-white/10 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[#6ab8d8] focus:border-transparent text-white placeholder:text-white/50 text-sm"
                   rows={2}
                   maxLength={500}
                 />
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mt-2">
+                <div className="flex justify-between items-center mt-2">
                   <span className="text-xs text-white/50">
                     {(replyContent[reply.id] || '').length}/500 characters
                   </span>
-                  <div className="flex gap-2 w-full sm:w-auto">
+                  <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => handleCancelReply(reply.id)}
-                      className="flex-1 sm:flex-initial px-3 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+                      className="px-3 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={!replyContent[reply.id]?.trim() || submittingReply[reply.id]}
-                      className="flex-1 sm:flex-initial px-3 py-1.5 text-xs bg-gradient-to-br from-[#0f4c75] to-[#1b627d] hover:shadow-[0_4px_15px_rgba(15,76,117,0.4)] text-white rounded-lg font-medium transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                      className="px-3 py-1.5 text-xs bg-gradient-to-br from-[#0f4c75] to-[#1b627d] hover:shadow-[0_4px_15px_rgba(15,76,117,0.4)] text-white rounded-lg font-medium transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                     >
                       {submittingReply[reply.id] ? 'Posting...' : 'Post Reply'}
                     </button>
@@ -379,69 +349,39 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
         )}
 
         {/* Show/Hide Replies Toggle */}
-        {reply.replies && reply.replies.length > 0 && !exceedsMaxDepth && (
+        {reply.replies && reply.replies.length > 0 && depth < maxDepth && (
           <div 
             className="mt-2" 
-            style={{ 
-              marginLeft: `clamp(${mobileTotalIndent}px, ${totalIndent}px, ${totalIndent}px)`
-            }}
+            style={{ marginLeft: `${totalIndent}px` }}
           >
             <button
               onClick={() => toggleReplies(reply.id)}
-              className="flex items-center gap-1.5 sm:gap-2 text-xs text-white/60 hover:text-[#6ab8d8] transition-colors"
+              className="flex items-center gap-2 text-xs text-white/60 hover:text-[#6ab8d8] transition-colors"
             >
               <svg 
                 viewBox="0 0 24 24" 
-                width="12" 
-                height="12" 
-                className={`sm:w-[14px] sm:h-[14px] transition-transform ${expandedReplies[reply.id] ? 'rotate-90' : ''}`}
+                width="14" 
+                height="14" 
                 fill="currentColor"
+                className={`transition-transform ${expandedReplies[reply.id] ? 'rotate-90' : ''}`}
               >
                 <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
               </svg>
-              <span className="hidden sm:inline">
-                {expandedReplies[reply.id] 
-                  ? `Hide ${countTotalReplies(reply.replies)} ${countTotalReplies(reply.replies) === 1 ? 'reply' : 'replies'}`
-                  : `Show ${countTotalReplies(reply.replies)} ${countTotalReplies(reply.replies) === 1 ? 'reply' : 'replies'}`
-                }
-              </span>
-              <span className="sm:hidden">
-                {expandedReplies[reply.id] 
-                  ? `Hide (${countTotalReplies(reply.replies)})`
-                  : `Show (${countTotalReplies(reply.replies)})`
-                }
-              </span>
+              {expandedReplies[reply.id] 
+                ? `Hide ${countTotalReplies(reply.replies)} ${countTotalReplies(reply.replies) === 1 ? 'reply' : 'replies'}`
+                : `Show ${countTotalReplies(reply.replies)} ${countTotalReplies(reply.replies) === 1 ? 'reply' : 'replies'}`
+              }
             </button>
           </div>
         )}
 
         {/* Recursively render nested replies */}
-        {reply.replies && reply.replies.length > 0 && !exceedsMaxDepth && expandedReplies[reply.id] && (
+        {reply.replies && reply.replies.length > 0 && depth < maxDepth && expandedReplies[reply.id] && (
           <div 
-            className="mt-3 pl-2 sm:pl-4 border-l-2 border-white/10" 
-            style={{ 
-              marginLeft: `clamp(${mobileTotalIndent}px, ${totalIndent}px, ${totalIndent}px)`
-            }}
+            className="mt-3 pl-4 border-l-2 border-white/10 min-w-fit" 
+            style={{ marginLeft: `${totalIndent}px` }}
           >
-            {reply.replies.map((nestedReply) => {
-              // Flatten display if we're at max depth - show as regular replies with "in reply to" indicator
-              if (depth >= maxDepthDesktop - 1) {
-                return renderReply(nestedReply, depth + 1, totalIndent, reply);
-              }
-              return renderReply(nestedReply, depth + 1, totalIndent, reply);
-            })}
-          </div>
-        )}
-        
-        {/* Show indicator if there are more nested replies beyond max depth */}
-        {reply.replies && reply.replies.length > 0 && exceedsMaxDepth && (
-          <div 
-            className="mt-2 text-xs text-white/50 italic"
-            style={{ 
-              marginLeft: `clamp(${mobileTotalIndent}px, ${totalIndent}px, ${totalIndent}px)`
-            }}
-          >
-            + {countTotalReplies(reply.replies)} more {countTotalReplies(reply.replies) === 1 ? 'reply' : 'replies'} (thread too deep to display)
+            {reply.replies.map((nestedReply) => renderReply(nestedReply, depth + 1, totalIndent))}
           </div>
         )}
       </div>
@@ -1630,7 +1570,7 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
 
       {/* Discussions Section - Separate container at bottom */}
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 md:px-8 pb-6 sm:pb-8 md:pb-10">
-        <div className="bg-[#2a2a2a] rounded-[20px] p-4 sm:p-6 shadow-[0_8px_30px_rgba(0,0,0,0.4)] border border-white/5">
+        <div className="bg-[#2a2a2a] rounded-[20px] p-4 sm:p-6 shadow-[0_8px_30px_rgba(0,0,0,0.4)] border border-white/5 overflow-x-auto">
           <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Community Discussions</h2>
           
           {/* Create Discussion Form */}
@@ -1688,9 +1628,9 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1e3c72]"></div>
             </div>
           ) : discussions.length > 0 ? (
-            <div className="space-y-6">
+            <div className="space-y-6 min-w-0">
               {discussions.map((discussion) => (
-                <div key={discussion.id} className="pb-6 border-b border-white/10 last:border-0 last:pb-0">
+                <div key={discussion.id} className="pb-6 border-b border-white/10 last:border-0 last:pb-0 min-w-0">
                   {/* Main Discussion */}
                   <div className="flex gap-3 mb-4">
                     {discussion.user.image ? (
@@ -1806,7 +1746,7 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
 
                   {/* Replies - Rendered recursively */}
                   {discussion.replies && discussion.replies.length > 0 && expandedReplies[discussion.id] !== false && (
-                    <div className="mt-4">
+                    <div className="mt-4 min-w-fit">
                       {discussion.replies.map((reply) => renderReply(reply, 0, 0))}
                     </div>
                   )}
