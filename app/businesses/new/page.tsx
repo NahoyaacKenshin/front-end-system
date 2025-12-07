@@ -130,6 +130,10 @@ export default function AddBusinessPage() {
       setError('Location is required');
       return false;
     }
+    if (!verificationDocument) {
+      setError('Verification document is required');
+      return false;
+    }
     return true;
   };
 
@@ -156,11 +160,13 @@ export default function AddBusinessPage() {
         }
       });
 
-      // Convert verification document to base64 if provided
-      let verificationDocumentUrl: string | undefined;
-      if (verificationDocument) {
-        verificationDocumentUrl = await fileToBase64(verificationDocument);
+      // Convert verification document to base64 (required)
+      if (!verificationDocument) {
+        setError('Verification document is required');
+        setLoading(false);
+        return;
       }
+      const verificationDocumentUrl = await fileToBase64(verificationDocument);
 
       const businessData = {
         name: formData.name.trim(),
@@ -356,7 +362,9 @@ export default function AddBusinessPage() {
 
           {/* Verification Document */}
           <div className="bg-[#2a2a2a] rounded-xl p-6 border border-white/10">
-            <h2 className="text-xl font-semibold text-white mb-4">Verification Document (Optional)</h2>
+            <h2 className="text-xl font-semibold text-white mb-4">
+              Verification Document <span className="text-red-400">*</span>
+            </h2>
             <p className="text-white/60 text-sm mb-4">
               Upload a verification document to get your business verified. This can be a business permit, license, or any official document proving your business legitimacy.
             </p>
@@ -407,7 +415,7 @@ export default function AddBusinessPage() {
           {/* Info Note */}
           <div className="bg-[#2a2a2a]/50 rounded-xl p-4 border border-[#6ab8d8]/20">
             <p className="text-sm text-white/70">
-              <strong className="text-[#6ab8d8]">Note:</strong> You can add photos, logo, gallery, store hours, and social media links later by editing your business page.
+              <strong className="text-[#6ab8d8]">Note:</strong> You can add photos, logo, gallery, store hours, and social media links later by editing your business page. A verification document is required to create a business.
             </p>
           </div>
 
