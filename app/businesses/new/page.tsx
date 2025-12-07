@@ -325,11 +325,11 @@ export default function AddBusinessPage() {
                 <p className="text-white/60 text-sm">No contact information added. Click "Add Contact" to add email or phone.</p>
               ) : (
                 formData.contactInfo.map((contact, index) => (
-                  <div key={index} className="flex gap-2 items-start">
+                  <div key={index} className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-start">
                     <select
                       value={contact.type}
                       onChange={(e) => updateContactInfo(index, 'type', e.target.value)}
-                      className="px-3 py-3 bg-[#1a1a1a] border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#6ab8d8] transition-colors"
+                      className="w-full sm:w-auto sm:min-w-[120px] px-3 py-3 bg-[#1a1a1a] border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#6ab8d8] transition-colors"
                     >
                       <option value="email">Email</option>
                       <option value="phone">Phone</option>
@@ -339,12 +339,12 @@ export default function AddBusinessPage() {
                       value={contact.value}
                       onChange={(e) => updateContactInfo(index, 'value', e.target.value)}
                       placeholder={contact.type === 'email' ? 'email@example.com' : '+63 123 456 7890'}
-                      className="flex-1 px-4 py-3 bg-[#1a1a1a] border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-[#6ab8d8] transition-colors"
+                      className="flex-1 min-w-0 px-4 py-3 bg-[#1a1a1a] border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-[#6ab8d8] transition-colors"
                     />
                     <button
                       type="button"
                       onClick={() => removeContactInfo(index)}
-                      className="px-4 py-3 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20 transition-colors"
+                      className="w-full sm:w-auto sm:flex-shrink-0 px-4 py-3 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20 transition-colors whitespace-nowrap"
                     >
                       Remove
                     </button>
