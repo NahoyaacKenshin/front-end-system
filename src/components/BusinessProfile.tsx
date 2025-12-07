@@ -351,7 +351,7 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
         {/* Show/Hide Replies Toggle */}
         {reply.replies && reply.replies.length > 0 && depth < maxDepth && (
           <div 
-            className="mt-2" 
+            className={`mt-2 ${depth > 0 ? 'mb-3' : ''}`}
             style={{ marginLeft: `${totalIndent}px` }}
           >
             <button
@@ -1725,7 +1725,7 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
                     <div className="mt-3 mb-3 ml-0 sm:ml-[52px]">
                       <button
                         onClick={() => toggleReplies(discussion.id)}
-                        className="flex items-center gap-2 mb-3 text-sm text-white/70 hover:text-[#6ab8d8] transition-colors"
+                        className="flex items-center gap-2 text-sm text-white/70 hover:text-[#6ab8d8] transition-colors"
                       >
                         <svg 
                           viewBox="0 0 24 24" 
