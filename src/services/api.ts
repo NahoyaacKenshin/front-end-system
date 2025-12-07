@@ -123,9 +123,27 @@ class ApiService {
       (error) => Promise.reject(error)
     );
 
-    // Response interceptor to handle token refresh
+    // Response interceptor to handle token refresh and role changes
     this.api.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        // Lightweight role check after successful API calls (throttled)
+        // This helps catch role changes when user makes API calls after admin approves business
+        if (typeof window !== 'undefined' && response.status >= 200 && response.status < 300) {
+          const lastRoleCheck = localStorage.getItem('lastRoleCheck');
+          const now = Date.now();
+          // Only check if last check was more than 30 seconds ago (throttle)
+          if (!lastRoleCheck || now - parseInt(lastRoleCheck) > 30000) {
+            // Check role asynchronously without blocking the response
+            setTimeout(() => {
+              // Import and call refreshUser from AuthContext
+              // We'll use a custom event to trigger the refresh
+              window.dispatchEvent(new CustomEvent('checkUserRole'));
+            }, 0);
+            localStorage.setItem('lastRoleCheck', now.toString());
+          }
+        }
+        return response;
+      },
       async (error: AxiosError) => {
         const originalRequest = error.config as ExtendedAxiosRequestConfig;
 

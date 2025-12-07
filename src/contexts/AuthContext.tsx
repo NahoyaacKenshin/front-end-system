@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { api } from '../services/api';
 import type { User, AuthTokens } from '../types';
 
@@ -72,76 +72,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const storedUser = localStorage.getItem('user');
-        const accessToken = localStorage.getItem('accessToken');
-
-        if (storedUser && accessToken) {
-          // Check if token needs refresh on load
-          await refreshTokenIfNeeded();
-          setUser(JSON.parse(storedUser));
-        }
-      } catch (error) {
-        console.error('Error loading user:', error);
-        localStorage.removeItem('user');
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadUser();
-
-    // Set up interval to check and refresh token every 5 minutes
-    const tokenRefreshInterval = setInterval(async () => {
-      if (localStorage.getItem('accessToken')) {
-        await refreshTokenIfNeeded();
-      }
-    }, 5 * 60 * 1000); // Check every 5 minutes
-
-    return () => {
-      clearInterval(tokenRefreshInterval);
-    };
-  }, []);
-
-  const login = async (email: string, password: string): Promise<void> => {
-    const response = await api.login(email, password);
-    if (response.status === 'success' && response.data) {
-      const { tokens, user: userData } = response.data;
-      setAuthData(tokens, userData);
-    } else {
-      throw new Error(response.message || 'Login failed');
-    }
-  };
-
-  const signup = async (name: string, email: string, password: string): Promise<void> => {
-    const response = await api.signup(name, email, password);
-    if (response.status === 'success') {
-      // User needs to verify email before logging in
-      return;
-    } else {
-      throw new Error(response.message || 'Signup failed');
-    }
-  };
-
-  const logout = (): void => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    setUser(null);
-  };
-
-  const setAuthData = (tokens: AuthTokens, userData: User): void => {
-    localStorage.setItem('accessToken', tokens.accessToken);
-    localStorage.setItem('refreshToken', tokens.refreshToken);
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
-  };
-
-  const refreshUser = async (): Promise<void> => {
+  const refreshUser = useCallback(async (): Promise<void> => {
     try {
       const accessToken = localStorage.getItem('accessToken');
       if (!accessToken) {
@@ -184,6 +115,102 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(JSON.parse(storedUser));
       }
     }
+  }, []);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const storedUser = localStorage.getItem('user');
+        const accessToken = localStorage.getItem('accessToken');
+
+        if (storedUser && accessToken) {
+          // Check if token needs refresh on load
+          await refreshTokenIfNeeded();
+          setUser(JSON.parse(storedUser));
+        }
+      } catch (error) {
+        console.error('Error loading user:', error);
+        localStorage.removeItem('user');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadUser();
+
+    // Set up interval to check and refresh token every 5 minutes
+    const tokenRefreshInterval = setInterval(async () => {
+      if (localStorage.getItem('accessToken')) {
+        await refreshTokenIfNeeded();
+      }
+    }, 5 * 60 * 1000); // Check every 5 minutes
+
+    // Check role when page becomes visible (user switches back to tab)
+    // This helps catch role changes that happened while user was away
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && localStorage.getItem('accessToken')) {
+        // Throttle: only check if last check was more than 30 seconds ago
+        const lastCheck = localStorage.getItem('lastRoleCheck');
+        const now = Date.now();
+        if (!lastCheck || now - parseInt(lastCheck) > 30000) {
+          refreshUser();
+          localStorage.setItem('lastRoleCheck', now.toString());
+        }
+      }
+    };
+
+    // Listen for role check events from API interceptor
+    // This triggers when user makes API calls, helping catch role changes after admin approval
+    const handleRoleCheck = () => {
+      if (localStorage.getItem('accessToken')) {
+        refreshUser();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('checkUserRole', handleRoleCheck);
+
+    return () => {
+      clearInterval(tokenRefreshInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('checkUserRole', handleRoleCheck);
+    };
+  }, [refreshUser]);
+
+  const login = async (email: string, password: string): Promise<void> => {
+    const response = await api.login(email, password);
+    if (response.status === 'success' && response.data) {
+      const { tokens, user: userData } = response.data;
+      setAuthData(tokens, userData);
+    } else {
+      throw new Error(response.message || 'Login failed');
+    }
+  };
+
+  const signup = async (name: string, email: string, password: string): Promise<void> => {
+    const response = await api.signup(name, email, password);
+    if (response.status === 'success') {
+      // User needs to verify email before logging in
+      return;
+    } else {
+      throw new Error(response.message || 'Signup failed');
+    }
+  };
+
+  const logout = (): void => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    setUser(null);
+  };
+
+  const setAuthData = (tokens: AuthTokens, userData: User): void => {
+    localStorage.setItem('accessToken', tokens.accessToken);
+    localStorage.setItem('refreshToken', tokens.refreshToken);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setUser(userData);
   };
 
   return (
