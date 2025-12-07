@@ -219,6 +219,11 @@ class ApiService {
     return response.data;
   }
 
+  async getCurrentUser(): Promise<ServiceResponse> {
+    const response = await this.api.get('/auth/v1/me');
+    return response.data;
+  }
+
   async exchangeOAuthCode(code: string): Promise<ServiceResponse> {
     try {
       const response = await this.api.get('/auth/v1/oauth/exchange', { params: { code } });

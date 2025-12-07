@@ -102,8 +102,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }, 5 * 60 * 1000); // Check every 5 minutes
 
+    // Set up interval to refresh user data every 2 minutes to catch role changes
+    const userRefreshInterval = setInterval(async () => {
+      if (localStorage.getItem('accessToken')) {
+        await refreshUser();
+      }
+    }, 2 * 60 * 1000); // Check every 2 minutes
+
     return () => {
       clearInterval(tokenRefreshInterval);
+      clearInterval(userRefreshInterval);
     };
   }, []);
 
@@ -143,12 +151,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const refreshUser = async (): Promise<void> => {
     try {
+      const accessToken = localStorage.getItem('accessToken');
+      if (!accessToken) {
+        return;
+      }
+
+      // Fetch fresh user data from the API
+      const response = await api.getCurrentUser();
+      if (response.status === 'success' && response.data) {
+        const userData = response.data;
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
+      } else {
+        // If API call fails, fall back to stored user
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing user:', error);
+      // If API call fails, fall back to stored user
       const storedUser = localStorage.getItem('user');
       if (storedUser) {
         setUser(JSON.parse(storedUser));
       }
-    } catch (error) {
-      console.error('Error refreshing user:', error);
     }
   };
 

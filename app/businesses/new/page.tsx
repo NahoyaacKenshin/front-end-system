@@ -18,7 +18,7 @@ interface ContactInfo {
 
 export default function AddBusinessPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -175,6 +175,8 @@ export default function AddBusinessPage() {
       const response = await api.createBusiness(businessData);
 
       if (response.success) {
+        // Refresh user data to get updated role (CUSTOMER -> VENDOR if first business)
+        await refreshUser();
         // Redirect to the new business page
         router.push(`/business/${response.data.id}`);
       } else {
