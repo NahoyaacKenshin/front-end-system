@@ -23,6 +23,7 @@ interface Socials {
   instagram?: string;
   facebook?: string;
   twitter?: string;
+  tiktok?: string;
   website?: string;
 }
 
@@ -1220,6 +1221,16 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
                   <p className="text-sm font-medium text-white/80 mb-3">Social Media</p>
                   <div className="space-y-3">
                     <div>
+                      <label className="block text-sm font-medium text-white/80 mb-2">TikTok URL</label>
+                      <input
+                        type="url"
+                        value={editSocials.tiktok || ''}
+                        onChange={(e) => setEditSocials({ ...editSocials, tiktok: e.target.value })}
+                        className="w-full px-4 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-[#6ab8d8] transition-colors"
+                        placeholder="https://www.tiktok.com/@yourbusiness"
+                      />
+                    </div>
+                    <div>
                       <label className="block text-sm font-medium text-white/80 mb-2">Facebook URL</label>
                       <input
                         type="url"
@@ -1328,10 +1339,23 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
               )}
             </div>
 
-            {(socials.instagram || socials.facebook || socials.twitter || socials.website) && (
+            {(socials.instagram || socials.facebook || socials.twitter || socials.tiktok || socials.website) && (
               <div className="pt-6 border-t border-white/10">
                 <p className="text-sm font-medium text-white/60 mb-3">Follow Us</p>
                 <div className="flex gap-3">
+                  {socials.tiktok && (
+                    <a
+                      href={socials.tiktok}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-10 h-10 rounded-full bg-black hover:bg-[#111] flex items-center justify-center cursor-pointer transition-colors"
+                      title="TikTok"
+                    >
+                      <svg viewBox="0 0 24 24" width="20" height="20" fill="white">
+                        <path d="M12.9 4c.25 2.08 1.61 3.67 3.64 3.8v2.32a6.54 6.54 0 01-3.7-1.15v4.8a4.56 4.56 0 11-4.56-4.56c.23 0 .46.02.68.06v2.34a2.24 2.24 0 00-.68-.1 2.24 2.24 0 102.24 2.24V4h2.38z"/>
+                      </svg>
+                    </a>
+                  )}
                   {socials.instagram && (
                     <a 
                       href={socials.instagram} 
