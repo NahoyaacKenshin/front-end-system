@@ -846,7 +846,7 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
               <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
             </svg>
             <span className="hidden sm:inline whitespace-nowrap">
-              {uploadingCoverPhoto ? 'Uploading...' : 'Change Cover Photo'}
+            {uploadingCoverPhoto ? 'Uploading...' : 'Change Cover Photo'}
             </span>
             <input
               type="file"
@@ -972,20 +972,20 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
                 </button>
               ) : (
                 /* Favorite Count - For guests */
-                <div className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg backdrop-blur-sm bg-white/20 border border-white/30">
-                  <svg 
-                    viewBox="0 0 24 24" 
-                    width="20" 
-                    height="20" 
-                    fill="currentColor"
-                    className="text-white"
-                  >
-                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                  </svg>
-                  <span className="text-white font-semibold text-sm sm:text-base">
-                    {favoriteCount} {favoriteCount === 1 ? 'favorite' : 'favorites'}
-                  </span>
-                </div>
+                  <div className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg backdrop-blur-sm bg-white/20 border border-white/30">
+                    <svg 
+                      viewBox="0 0 24 24" 
+                      width="20" 
+                      height="20" 
+                      fill="currentColor"
+                      className="text-white"
+                    >
+                      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                    </svg>
+                    <span className="text-white font-semibold text-sm sm:text-base">
+                      {favoriteCount} {favoriteCount === 1 ? 'favorite' : 'favorites'}
+                    </span>
+                  </div>
               )}
             </div>
             </div>
@@ -1473,13 +1473,13 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
           <div className="bg-[#2a2a2a] rounded-[20px] p-4 sm:p-6 shadow-[0_8px_30px_rgba(0,0,0,0.4)] border border-white/5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-6 h-6 text-white/60">
-                  <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                  </svg>
-                </div>
-                <h3 className="text-lg sm:text-xl font-bold text-white m-0">Location</h3>
+              <div className="w-6 h-6 text-white/60">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                </svg>
               </div>
+              <h3 className="text-lg sm:text-xl font-bold text-white m-0">Location</h3>
+            </div>
               {canEdit && editingSection !== 'location' && (
                 <button
                   onClick={() => startEditing('location')}
@@ -1535,32 +1535,32 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
               </div>
             ) : (
               <>
-                <div className="mb-4">
-                  <iframe
-                    src={
-                      business.lat && business.lng
-                        ? `https://www.google.com/maps?q=${business.lat},${business.lng}&hl=en&z=14&output=embed`
-                        : `https://www.google.com/maps?q=${encodeURIComponent(business.location + ', ' + business.barangay + ', Philippines')}&hl=en&z=14&output=embed`
-                    }
-                    width="100%"
-                    height="200"
-                    className="sm:h-[250px]"
-                    style={{ border: 0, borderRadius: '8px' }}
-                    allowFullScreen={true}
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    title={`${business.name} Location`}
-                  ></iframe>
-                </div>
-                <button 
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-br from-[#0f4c75] to-[#1b627d] hover:shadow-[0_4px_15px_rgba(15,76,117,0.4)] text-white rounded-lg font-semibold cursor-pointer transition-all duration-300 hover:-translate-y-0.5" 
-                  onClick={handleGetDirections}
-                >
-                  <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-                    <path d="M21.71 11.29l-9-9c-.39-.39-1.02-.39-1.41 0l-9 9c-.39.39-.39 1.02 0 1.41l9 9c.39.39 1.02.39 1.41 0l9-9c.39-.38.39-1.01 0-1.41zM14 14.5V12h-4v3H8v-4c0-.55.45-1 1-1h5V7.5l3.5 3.5-3.5 3.5z"/>
-                  </svg>
-                  Get Directions
-                </button>
+            <div className="mb-4">
+              <iframe
+                src={
+                  business.lat && business.lng
+                    ? `https://www.google.com/maps?q=${business.lat},${business.lng}&hl=en&z=14&output=embed`
+                    : `https://www.google.com/maps?q=${encodeURIComponent(business.location + ', ' + business.barangay + ', Philippines')}&hl=en&z=14&output=embed`
+                }
+                width="100%"
+                height="200"
+                className="sm:h-[250px]"
+                style={{ border: 0, borderRadius: '8px' }}
+                allowFullScreen={true}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                title={`${business.name} Location`}
+              ></iframe>
+            </div>
+            <button 
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-br from-[#0f4c75] to-[#1b627d] hover:shadow-[0_4px_15px_rgba(15,76,117,0.4)] text-white rounded-lg font-semibold cursor-pointer transition-all duration-300 hover:-translate-y-0.5" 
+              onClick={handleGetDirections}
+            >
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                <path d="M21.71 11.29l-9-9c-.39-.39-1.02-.39-1.41 0l-9 9c-.39.39-.39 1.02 0 1.41l9 9c.39.39 1.02.39 1.41 0l9-9c.39-.38.39-1.01 0-1.41zM14 14.5V12h-4v3H8v-4c0-.55.45-1 1-1h5V7.5l3.5 3.5-3.5 3.5z"/>
+              </svg>
+              Get Directions
+            </button>
               </>
             )}
           </div>
