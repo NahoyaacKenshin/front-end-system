@@ -858,6 +858,36 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
   const socials = parseSocials(business.socials);
   const storeHours = formatStoreHours(business.openTime, business.closeTime);
   const parsedStoreHours = parseStoreHours(business.openTime);
+  
+  // Filter and map days with hours for display
+  const daysWithHours = parsedStoreHours 
+    ? ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        .filter((day) => {
+          const dayKey = day.toLowerCase();
+          const hours = parsedStoreHours[dayKey];
+          return hours && (hours.open || hours.close);
+        })
+        .map((day) => {
+          const dayKey = day.toLowerCase();
+          const hours = parsedStoreHours[dayKey];
+          
+          return (
+            <div key={day} className="flex justify-between items-center py-1.5">
+              <span className="text-sm text-white/80">{day}</span>
+              <span className="text-sm text-white/80">
+                {hours.open && hours.close 
+                  ? `${formatTime(hours.open)} - ${formatTime(hours.close)}`
+                  : hours.open 
+                  ? `Opens at ${formatTime(hours.open)}`
+                  : hours.close
+                  ? `Closes at ${formatTime(hours.close)}`
+                  : ''
+                }
+              </span>
+            </div>
+          );
+        })
+    : [];
 
   return (
     <div className="min-h-screen bg-[#1a1a1a]">
@@ -1500,42 +1530,12 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
                   </button>
                 </div>
               </div>
-            ) : parsedStoreHours ? (() => {
-              const daysWithHours = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-                .filter((day) => {
-                  const dayKey = day.toLowerCase();
-                  const hours = parsedStoreHours[dayKey];
-                  return hours && (hours.open || hours.close);
-                })
-                .map((day) => {
-                  const dayKey = day.toLowerCase();
-                  const hours = parsedStoreHours[dayKey];
-                  
-                  return (
-                    <div key={day} className="flex justify-between items-center py-1.5">
-                      <span className="text-sm text-white/80">{day}</span>
-                      <span className="text-sm text-white/80">
-                        {hours.open && hours.close 
-                          ? `${formatTime(hours.open)} - ${formatTime(hours.close)}`
-                          : hours.open 
-                          ? `Opens at ${formatTime(hours.open)}`
-                          : hours.close
-                          ? `Closes at ${formatTime(hours.close)}`
-                          : ''
-                        }
-                      </span>
-                    </div>
-                  );
-                });
-              
-              return daysWithHours.length > 0 ? (
-                <div className="space-y-2">
-                  {daysWithHours}
-                </div>
-              ) : (
-                <p className="text-white/60 text-sm">No store hours set</p>
-              );
-            })()
+            ) : parsedStoreHours && daysWithHours.length > 0 ? (
+              <div className="space-y-2">
+                {daysWithHours}
+              </div>
+            ) : parsedStoreHours ? (
+              <p className="text-white/60 text-sm">No store hours set</p>
             ) : business.openTime && business.closeTime ? (
               <div className="space-y-3">
                 <div className="flex justify-between items-center py-2">
