@@ -7,6 +7,7 @@ import { api } from '../../../src/services/api';
 import { CATEGORY_LIST } from '../../../src/constants/categories';
 import { BARANGAYS } from '../../../src/constants/barangays';
 import Navbar from '../../../src/components/Layout/Navbar';
+import SuccessModal from '../../../src/components/SuccessModal';
 import { fileToBase64 } from '../../../src/utils/imageOptimization';
 
 type ContactType = 'email' | 'phone';
@@ -18,9 +19,14 @@ interface ContactInfo {
 
 export default function AddBusinessPage() {
   const router = useRouter();
-  const { user, refreshUser } = useAuth();
+  const { user, logout } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successData, setSuccessData] = useState<{
+    businessId: number;
+    isFirstBusiness: boolean;
+  } | null>(null);
 
   // Form state - only basic fields
   const [formData, setFormData] = useState({
@@ -181,30 +187,22 @@ export default function AddBusinessPage() {
       const response = await api.createBusiness(businessData);
 
       if (response.success) {
-        // Force refresh user data to get updated role (CUSTOMER -> VENDOR)
-        // This ensures the user can edit their business immediately
-        // Wait a bit for database transaction to complete, then refresh
-        const refreshWithRetry = async (retries = 3, delay = 500) => {
-          for (let i = 0; i < retries; i++) {
-            try {
-              await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
-              await refreshUser(true);
-              console.log('User role refreshed successfully');
-              return;
-            } catch (error) {
-              console.log(`Refresh attempt ${i + 1} failed:`, error);
-              if (i === retries - 1) {
-                console.error('All refresh attempts failed');
-              }
-            }
-          }
-        };
-
-        // Start refresh in background (don't block redirect)
-        refreshWithRetry();
+        const businessId = response.data.id;
+        // isFirstBusiness is at the root level of the response, not in data
+        const isFirstBusiness = (response as any).isFirstBusiness || false;
         
-        // Redirect to the new business page
-        router.push(`/business/${response.data.id}`);
+        // Store business ID for redirect after relog (if customer)
+        if (isFirstBusiness && user?.role === 'CUSTOMER') {
+          localStorage.setItem('pendingBusinessRedirect', businessId.toString());
+          localStorage.setItem('pendingBusinessEditMode', 'true');
+        }
+
+        // Show success modal
+        setSuccessData({
+          businessId,
+          isFirstBusiness: isFirstBusiness && user?.role === 'CUSTOMER'
+        });
+        setShowSuccessModal(true);
       } else {
         setError(response.message || 'Failed to create business');
       }
@@ -237,6 +235,66 @@ export default function AddBusinessPage() {
             {error}
           </div>
         )}
+
+        {/* Success Modal */}
+        <SuccessModal
+          isOpen={showSuccessModal}
+          title={successData?.isFirstBusiness ? "Business Created Successfully!" : "Success!"}
+          message={
+            successData?.isFirstBusiness
+              ? "Your business has been created! Since this is your first business, your account has been upgraded to Vendor. Please log in again to apply the changes, then you'll be redirected to your business page in edit mode."
+              : "Your business has been created successfully!"
+          }
+          showCloseButton={!successData?.isFirstBusiness}
+          onClose={() => {
+            if (successData?.isFirstBusiness) {
+              // For first business, don't allow closing - force relog
+              return;
+            }
+            setShowSuccessModal(false);
+            router.push(`/business/${successData?.businessId}`);
+          }}
+        >
+          {successData?.isFirstBusiness ? (
+            <div className="space-y-4">
+              <div className="bg-[#1a1a1a] rounded-lg p-4 border border-[#6ab8d8]/20">
+                <p className="text-sm text-white/80 mb-3">
+                  <strong className="text-[#6ab8d8]">Note:</strong> Your account role has been upgraded from Customer to Vendor. You need to log in again for the changes to take effect.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  logout();
+                  router.push('/login');
+                }}
+                className="w-full px-6 py-3 bg-gradient-to-r from-[#6ab8d8] to-[#5aa8c8] text-white rounded-lg font-medium hover:from-[#5aa8c8] hover:to-[#4a98b8] transition-all"
+              >
+                Log Out & Go to Login
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  router.push('/business-owner-dashboard');
+                }}
+                className="flex-1 px-4 py-2 bg-[#2a2a2a] border border-white/10 text-white rounded-lg hover:bg-[#1a1a1a] transition-colors"
+              >
+                Go to Dashboard
+              </button>
+              <button
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  router.push(`/business/${successData?.businessId}`);
+                }}
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-[#6ab8d8] to-[#5aa8c8] text-white rounded-lg font-medium hover:from-[#5aa8c8] hover:to-[#4a98b8] transition-all"
+              >
+                View Business
+              </button>
+            </div>
+          )}
+        </SuccessModal>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">

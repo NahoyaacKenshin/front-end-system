@@ -36,8 +36,20 @@ function LoginContent() {
       setSuccessMessage(`Welcome back, ${userName}! Login successful. Redirecting...`);
       setError('');
       
+      // Check if there's a pending business redirect (from business creation)
+      const pendingBusinessId = localStorage.getItem('pendingBusinessRedirect');
+      const pendingEditMode = localStorage.getItem('pendingBusinessEditMode');
+      
       // Redirect based on role
       setTimeout(() => {
+        // If there's a pending business redirect, go to that business page in edit mode
+        if (pendingBusinessId && pendingEditMode === 'true') {
+          localStorage.removeItem('pendingBusinessRedirect');
+          localStorage.removeItem('pendingBusinessEditMode');
+          router.push(`/business/${pendingBusinessId}?edit=true`);
+          return;
+        }
+        
         if (userRole === 'ADMIN') {
           router.push('/admin');
         } else if (userRole === 'VENDOR') {
@@ -71,8 +83,21 @@ function LoginContent() {
       setError('');
       setIsLoading(false);
       
+      // Check if there's a pending business redirect (from business creation)
+      const pendingBusinessId = localStorage.getItem('pendingBusinessRedirect');
+      const pendingEditMode = localStorage.getItem('pendingBusinessEditMode');
+      
       // Navigate based on role after showing success message
       setTimeout(() => {
+        // If there's a pending business redirect, go to that business page in edit mode
+        if (pendingBusinessId && pendingEditMode === 'true') {
+          localStorage.removeItem('pendingBusinessRedirect');
+          localStorage.removeItem('pendingBusinessEditMode');
+          router.push(`/business/${pendingBusinessId}?edit=true`);
+          return;
+        }
+        
+        // Otherwise, navigate based on role
         if (user.role === 'ADMIN') {
           router.push('/admin');
         } else if (user.role === 'VENDOR') {

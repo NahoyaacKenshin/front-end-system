@@ -8,7 +8,9 @@ function BusinessDetailsContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const mode = searchParams.get('mode');
-  const readOnly = mode === 'view';
+  const edit = searchParams.get('edit');
+  // Allow editing if edit=true is in URL, or if mode is not 'view'
+  const readOnly = mode === 'view' && edit !== 'true';
   
   return <BusinessProfile businessId={params.id as string} readOnly={readOnly} />;
 }
