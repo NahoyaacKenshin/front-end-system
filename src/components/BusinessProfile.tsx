@@ -781,6 +781,38 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
     }
   };
 
+  // Parse store hours from JSON format
+  const parseStoreHours = (openTime?: string | null): { [key: string]: { open: string; close: string } } | null => {
+    if (!openTime) return null;
+    
+    try {
+      // Try to parse as JSON first (new format)
+      const parsed = JSON.parse(openTime);
+      if (typeof parsed === 'object' && parsed !== null) {
+        return parsed as { [key: string]: { open: string; close: string } };
+      }
+    } catch {
+      // If not JSON, return null (old format or invalid)
+      return null;
+    }
+    
+    return null;
+  };
+
+  // Format time to 12-hour format
+  const formatTime = (time: string): string => {
+    if (!time) return '';
+    
+    try {
+      const [hour, min] = time.split(':').map(Number);
+      const amPm = hour >= 12 ? 'PM' : 'AM';
+      const hour12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+      return `${hour12}:${min.toString().padStart(2, '0')} ${amPm}`;
+    } catch {
+      return time;
+    }
+  };
+
   const isOwner = user && business && user.id === business.ownerId;
   // Only owners can edit (not admins), and only if not in read-only mode
   const canEdit = isOwner && !readOnly;
@@ -825,6 +857,7 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
   const contactInfo = parseContactInfo(business.contactInfo);
   const socials = parseSocials(business.socials);
   const storeHours = formatStoreHours(business.openTime, business.closeTime);
+  const parsedStoreHours = parseStoreHours(business.openTime);
 
   return (
     <div className="min-h-screen bg-[#1a1a1a]">
@@ -1418,7 +1451,7 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                     <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
                   </svg>
-                  {business.openTime && business.closeTime ? 'Edit' : 'Add'}
+                  {business.openTime ? 'Edit' : 'Add'}
                 </button>
               )}
             </div>
@@ -1464,6 +1497,38 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
                     Cancel
                   </button>
                 </div>
+              </div>
+            ) : parsedStoreHours ? (
+              <div className="space-y-2">
+                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => {
+                  const dayKey = day.toLowerCase();
+                  const hours = parsedStoreHours[dayKey];
+                  
+                  if (!hours || (!hours.open && !hours.close)) {
+                    return (
+                      <div key={day} className="flex justify-between items-center py-1.5">
+                        <span className="text-sm text-white/80">{day}</span>
+                        <span className="text-sm text-white/60">Closed</span>
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <div key={day} className="flex justify-between items-center py-1.5">
+                      <span className="text-sm text-white/80">{day}</span>
+                      <span className="text-sm text-white/80">
+                        {hours.open && hours.close 
+                          ? `${formatTime(hours.open)} - ${formatTime(hours.close)}`
+                          : hours.open 
+                          ? `Opens at ${formatTime(hours.open)}`
+                          : hours.close
+                          ? `Closes at ${formatTime(hours.close)}`
+                          : 'Closed'
+                        }
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             ) : business.openTime && business.closeTime ? (
               <div className="space-y-3">
