@@ -17,16 +17,21 @@ export default function FavoritesPage() {
   const [error, setError] = useState<string | null>(null);
   const [removingFavorite, setRemovingFavorite] = useState<number | null>(null);
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
 
   useEffect(() => {
+    // Wait for auth to finish loading before checking user
+    if (isLoading) {
+      return;
+    }
+
     if (!user) {
       router.push('/login');
       return;
     }
 
     loadFavorites();
-  }, [user, router]);
+  }, [user, isLoading, router]);
 
   const loadFavorites = async () => {
     try {

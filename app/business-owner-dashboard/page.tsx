@@ -30,7 +30,7 @@ export default function DashboardPage() {
   const [recentDiscussions, setRecentDiscussions] = useState<Discussion[]>([]);
   const [deletingBusiness, setDeletingBusiness] = useState<number | null>(null);
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
   
   // Get user's name from auth context, fallback to 'User' if not available
 const rawName = user?.name || 'User';
@@ -38,6 +38,11 @@ const userName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
 
   // Load dashboard data
   useEffect(() => {
+    // Wait for auth to finish loading before checking user
+    if (isLoading) {
+      return;
+    }
+
     const loadDashboardData = async () => {
       if (!user) return;
       

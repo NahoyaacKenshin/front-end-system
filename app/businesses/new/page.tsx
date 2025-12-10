@@ -19,7 +19,7 @@ interface ContactInfo {
 
 export default function AddBusinessPage() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -42,12 +42,17 @@ export default function AddBusinessPage() {
 
   // Redirect if not authenticated
   useEffect(() => {
+    // Wait for auth to finish loading before checking user
+    if (isLoading) {
+      return;
+    }
+
     if (!user) {
       router.push('/login');
     } else if (user.role === 'ADMIN') {
       router.push('/admin');
     }
-  }, [user, router]);
+  }, [user, isLoading, router]);
 
   // Cleanup object URLs on unmount
   useEffect(() => {
