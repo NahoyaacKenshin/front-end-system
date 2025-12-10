@@ -408,32 +408,9 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
       setEditLng(business.lng || null);
     } else if (section === 'storeHours') {
       try {
-        if (business.openTime) {
-          const hours = JSON.parse(business.openTime);
-          // Normalize the hours object to ensure lowercase day keys and proper time format
-          const normalizedHours: { [key: string]: { open: string; close: string } } = {};
-          
-          // Days of the week in lowercase
-          const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-          
-          days.forEach(day => {
-            // Check for both lowercase and capitalized keys
-            const dayData = hours[day] || hours[day.charAt(0).toUpperCase() + day.slice(1)];
-            if (dayData && dayData.open && dayData.close) {
-              // Normalize time format to HH:MM (HTML time input format)
-              normalizedHours[day] = {
-                open: normalizeTimeValue(dayData.open),
-                close: normalizeTimeValue(dayData.close)
-              };
-            }
-          });
-          
-          setEditStoreHours(normalizedHours);
-        } else {
-          setEditStoreHours({});
-        }
-      } catch (error) {
-        console.error('Error parsing store hours:', error);
+        const hours = business.openTime ? JSON.parse(business.openTime) : {};
+        setEditStoreHours(hours);
+      } catch {
         setEditStoreHours({});
       }
     }
@@ -673,20 +650,8 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
   const handleSaveStoreHours = async () => {
     if (!business) return;
     
-    // Filter out days that don't have both open and close times
-    const validStoreHours: { [key: string]: { open: string; close: string } } = {};
-    Object.keys(editStoreHours).forEach(day => {
-      const hours = editStoreHours[day];
-      if (hours && hours.open && hours.close) {
-        validStoreHours[day] = {
-          open: hours.open,
-          close: hours.close
-        };
-      }
-    });
-    
-    const storeHoursString = Object.keys(validStoreHours).length > 0 
-      ? JSON.stringify(validStoreHours) 
+    const storeHoursString = Object.keys(editStoreHours).length > 0 
+      ? JSON.stringify(editStoreHours) 
       : null;
     
     await saveBusinessUpdate({ openTime: storeHoursString });
@@ -791,29 +756,6 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
     } catch {
       return {};
     }
-  };
-
-  // Normalize time value to HH:MM format for HTML time inputs
-  const normalizeTimeValue = (time: string): string => {
-    if (!time) return '';
-    
-    // If already in HH:MM format, return as is
-    if (time.includes(':')) {
-      const [hours, minutes] = time.split(':');
-      return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
-    }
-    
-    // If in HHMM format (e.g., "0900"), convert to HH:MM
-    if (time.length === 4) {
-      return `${time.slice(0, 2)}:${time.slice(2)}`;
-    }
-    
-    // If in HMM format (e.g., "900"), convert to HH:MM
-    if (time.length === 3) {
-      return `0${time.slice(0, 1)}:${time.slice(1)}`;
-    }
-    
-    return time;
   };
 
   const formatStoreHours = (openTime?: string | null, closeTime?: string | null): string => {
@@ -1476,16 +1418,15 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                     <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
                   </svg>
-                  {business.openTime ? 'Edit' : 'Add'}
+                  {business.openTime && business.closeTime ? 'Edit' : 'Add'}
                 </button>
               )}
             </div>
             {editingSection === 'storeHours' ? (
-              <div className="space-y-3 sm:space-y-4">
+              <div className="space-y-4">
                 {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
-                  <div key={day} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2">
-                    <div className="w-full sm:w-20 sm:flex-shrink-0 text-sm text-white/80 font-medium">{day}</div>
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div key={day} className="flex items-center gap-2">
+                    <div className="w-24 text-sm text-white/80">{day}</div>
                     <input
                       type="time"
                       value={editStoreHours[day.toLowerCase()]?.open || ''}
@@ -1493,9 +1434,9 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
                         ...editStoreHours,
                         [day.toLowerCase()]: { ...editStoreHours[day.toLowerCase()], open: e.target.value, close: editStoreHours[day.toLowerCase()]?.close || '' }
                       })}
-                        className="flex-1 min-w-0 px-2 sm:px-3 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white text-sm sm:text-base focus:outline-none focus:border-[#6ab8d8] transition-colors"
+                      className="flex-1 px-3 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#6ab8d8] transition-colors"
                     />
-                      <span className="text-white/60 text-sm sm:text-base flex-shrink-0">to</span>
+                    <span className="text-white/60">to</span>
                     <input
                       type="time"
                       value={editStoreHours[day.toLowerCase()]?.close || ''}
@@ -1503,35 +1444,32 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
                         ...editStoreHours,
                         [day.toLowerCase()]: { ...editStoreHours[day.toLowerCase()], open: editStoreHours[day.toLowerCase()]?.open || '', close: e.target.value }
                       })}
-                        className="flex-1 min-w-0 px-2 sm:px-3 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white text-sm sm:text-base focus:outline-none focus:border-[#6ab8d8] transition-colors"
+                      className="flex-1 px-3 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#6ab8d8] transition-colors"
                     />
-                    </div>
                   </div>
                 ))}
-                <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                <div className="flex gap-2 pt-2">
                   <button
                     onClick={handleSaveStoreHours}
                     disabled={saving}
-                    className="w-full sm:w-auto px-4 py-2 bg-[#6ab8d8] text-white rounded-lg font-medium hover:bg-[#5aa8c8] transition-colors disabled:opacity-50"
+                    className="px-4 py-2 bg-[#6ab8d8] text-white rounded-lg font-medium hover:bg-[#5aa8c8] transition-colors disabled:opacity-50"
                   >
                     {saving ? 'Saving...' : 'Save'}
                   </button>
                   <button
                     onClick={cancelEditing}
                     disabled={saving}
-                    className="w-full sm:w-auto px-4 py-2 bg-[#2a2a2a] border border-white/10 text-white rounded-lg font-medium hover:bg-[#1a1a1a] transition-colors disabled:opacity-50"
+                    className="px-4 py-2 bg-[#2a2a2a] border border-white/10 text-white rounded-lg font-medium hover:bg-[#1a1a1a] transition-colors disabled:opacity-50"
                   >
                     Cancel
                   </button>
                 </div>
               </div>
-            ) : business.openTime ? (
+            ) : business.openTime && business.closeTime ? (
               <div className="space-y-3">
-                <div className="flex flex-col gap-2">
-                  <span className="text-base font-medium text-white mb-2">Store Hours</span>
-                  <div className="text-sm text-white/80 whitespace-pre-line">
-                    {storeHours}
-                  </div>
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-base font-medium text-white">Open Hours</span>
+                  <span className="text-base text-white/80">{storeHours}</span>
                 </div>
               </div>
             ) : (
