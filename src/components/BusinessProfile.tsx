@@ -408,9 +408,32 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
       setEditLng(business.lng || null);
     } else if (section === 'storeHours') {
       try {
-        const hours = business.openTime ? JSON.parse(business.openTime) : {};
-        setEditStoreHours(hours);
-      } catch {
+        if (business.openTime) {
+          const hours = JSON.parse(business.openTime);
+          // Normalize the hours object to ensure lowercase day keys and proper time format
+          const normalizedHours: { [key: string]: { open: string; close: string } } = {};
+          
+          // Days of the week in lowercase
+          const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+          
+          days.forEach(day => {
+            // Check for both lowercase and capitalized keys
+            const dayData = hours[day] || hours[day.charAt(0).toUpperCase() + day.slice(1)];
+            if (dayData && dayData.open && dayData.close) {
+              // Normalize time format to HH:MM (HTML time input format)
+              normalizedHours[day] = {
+                open: normalizeTimeValue(dayData.open),
+                close: normalizeTimeValue(dayData.close)
+              };
+            }
+          });
+          
+          setEditStoreHours(normalizedHours);
+        } else {
+          setEditStoreHours({});
+        }
+      } catch (error) {
+        console.error('Error parsing store hours:', error);
         setEditStoreHours({});
       }
     }
@@ -768,6 +791,29 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
     } catch {
       return {};
     }
+  };
+
+  // Normalize time value to HH:MM format for HTML time inputs
+  const normalizeTimeValue = (time: string): string => {
+    if (!time) return '';
+    
+    // If already in HH:MM format, return as is
+    if (time.includes(':')) {
+      const [hours, minutes] = time.split(':');
+      return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+    }
+    
+    // If in HHMM format (e.g., "0900"), convert to HH:MM
+    if (time.length === 4) {
+      return `${time.slice(0, 2)}:${time.slice(2)}`;
+    }
+    
+    // If in HMM format (e.g., "900"), convert to HH:MM
+    if (time.length === 3) {
+      return `0${time.slice(0, 1)}:${time.slice(1)}`;
+    }
+    
+    return time;
   };
 
   const formatStoreHours = (openTime?: string | null, closeTime?: string | null): string => {
@@ -1440,25 +1486,25 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
                   <div key={day} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2">
                     <div className="w-full sm:w-20 sm:flex-shrink-0 text-sm text-white/80 font-medium">{day}</div>
                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <input
-                        type="time"
-                        value={editStoreHours[day.toLowerCase()]?.open || ''}
-                        onChange={(e) => setEditStoreHours({
-                          ...editStoreHours,
-                          [day.toLowerCase()]: { ...editStoreHours[day.toLowerCase()], open: e.target.value, close: editStoreHours[day.toLowerCase()]?.close || '' }
-                        })}
+                    <input
+                      type="time"
+                      value={editStoreHours[day.toLowerCase()]?.open || ''}
+                      onChange={(e) => setEditStoreHours({
+                        ...editStoreHours,
+                        [day.toLowerCase()]: { ...editStoreHours[day.toLowerCase()], open: e.target.value, close: editStoreHours[day.toLowerCase()]?.close || '' }
+                      })}
                         className="flex-1 min-w-0 px-2 sm:px-3 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white text-sm sm:text-base focus:outline-none focus:border-[#6ab8d8] transition-colors"
-                      />
+                    />
                       <span className="text-white/60 text-sm sm:text-base flex-shrink-0">to</span>
-                      <input
-                        type="time"
-                        value={editStoreHours[day.toLowerCase()]?.close || ''}
-                        onChange={(e) => setEditStoreHours({
-                          ...editStoreHours,
-                          [day.toLowerCase()]: { ...editStoreHours[day.toLowerCase()], open: editStoreHours[day.toLowerCase()]?.open || '', close: e.target.value }
-                        })}
+                    <input
+                      type="time"
+                      value={editStoreHours[day.toLowerCase()]?.close || ''}
+                      onChange={(e) => setEditStoreHours({
+                        ...editStoreHours,
+                        [day.toLowerCase()]: { ...editStoreHours[day.toLowerCase()], open: editStoreHours[day.toLowerCase()]?.open || '', close: e.target.value }
+                      })}
                         className="flex-1 min-w-0 px-2 sm:px-3 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white text-sm sm:text-base focus:outline-none focus:border-[#6ab8d8] transition-colors"
-                      />
+                    />
                     </div>
                   </div>
                 ))}
