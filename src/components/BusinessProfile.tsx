@@ -1458,60 +1458,58 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
             {editingSection === 'storeHours' ? (
               <div className="space-y-4">
                 {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
-                  <div key={day} className="flex items-center gap-2">
-                    <div className="w-24 text-sm text-white/80">{day}</div>
-                    <input
-                      type="time"
-                      value={editStoreHours[day.toLowerCase()]?.open || ''}
-                      onChange={(e) => setEditStoreHours({
-                        ...editStoreHours,
-                        [day.toLowerCase()]: { ...editStoreHours[day.toLowerCase()], open: e.target.value, close: editStoreHours[day.toLowerCase()]?.close || '' }
-                      })}
-                      className="flex-1 px-3 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#6ab8d8] transition-colors"
-                    />
-                    <span className="text-white/60">to</span>
-                    <input
-                      type="time"
-                      value={editStoreHours[day.toLowerCase()]?.close || ''}
-                      onChange={(e) => setEditStoreHours({
-                        ...editStoreHours,
-                        [day.toLowerCase()]: { ...editStoreHours[day.toLowerCase()], open: editStoreHours[day.toLowerCase()]?.open || '', close: e.target.value }
-                      })}
-                      className="flex-1 px-3 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#6ab8d8] transition-colors"
-                    />
+                  <div key={day} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2">
+                    <div className="w-full sm:w-24 text-sm text-white/80 flex-shrink-0">{day}</div>
+                    <div className="flex items-center gap-2 flex-1 w-full sm:w-auto">
+                      <input
+                        type="time"
+                        value={editStoreHours[day.toLowerCase()]?.open || ''}
+                        onChange={(e) => setEditStoreHours({
+                          ...editStoreHours,
+                          [day.toLowerCase()]: { ...editStoreHours[day.toLowerCase()], open: e.target.value, close: editStoreHours[day.toLowerCase()]?.close || '' }
+                        })}
+                        className="flex-1 min-w-0 px-3 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#6ab8d8] transition-colors text-sm"
+                      />
+                      <span className="text-white/60 text-sm flex-shrink-0">to</span>
+                      <input
+                        type="time"
+                        value={editStoreHours[day.toLowerCase()]?.close || ''}
+                        onChange={(e) => setEditStoreHours({
+                          ...editStoreHours,
+                          [day.toLowerCase()]: { ...editStoreHours[day.toLowerCase()], open: editStoreHours[day.toLowerCase()]?.open || '', close: e.target.value }
+                        })}
+                        className="flex-1 min-w-0 px-3 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#6ab8d8] transition-colors text-sm"
+                      />
+                    </div>
                   </div>
                 ))}
-                <div className="flex gap-2 pt-2">
+                <div className="flex flex-col sm:flex-row gap-2 pt-2">
                   <button
                     onClick={handleSaveStoreHours}
                     disabled={saving}
-                    className="px-4 py-2 bg-[#6ab8d8] text-white rounded-lg font-medium hover:bg-[#5aa8c8] transition-colors disabled:opacity-50"
+                    className="px-4 py-2 bg-[#6ab8d8] text-white rounded-lg font-medium hover:bg-[#5aa8c8] transition-colors disabled:opacity-50 text-sm sm:text-base"
                   >
                     {saving ? 'Saving...' : 'Save'}
                   </button>
                   <button
                     onClick={cancelEditing}
                     disabled={saving}
-                    className="px-4 py-2 bg-[#2a2a2a] border border-white/10 text-white rounded-lg font-medium hover:bg-[#1a1a1a] transition-colors disabled:opacity-50"
+                    className="px-4 py-2 bg-[#2a2a2a] border border-white/10 text-white rounded-lg font-medium hover:bg-[#1a1a1a] transition-colors disabled:opacity-50 text-sm sm:text-base"
                   >
                     Cancel
                   </button>
                 </div>
               </div>
-            ) : parsedStoreHours ? (
-              <div className="space-y-2">
-                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => {
+            ) : parsedStoreHours ? (() => {
+              const daysWithHours = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+                .filter((day) => {
                   const dayKey = day.toLowerCase();
                   const hours = parsedStoreHours[dayKey];
-                  
-                  if (!hours || (!hours.open && !hours.close)) {
-                    return (
-                      <div key={day} className="flex justify-between items-center py-1.5">
-                        <span className="text-sm text-white/80">{day}</span>
-                        <span className="text-sm text-white/60">Closed</span>
-                      </div>
-                    );
-                  }
+                  return hours && (hours.open || hours.close);
+                })
+                .map((day) => {
+                  const dayKey = day.toLowerCase();
+                  const hours = parsedStoreHours[dayKey];
                   
                   return (
                     <div key={day} className="flex justify-between items-center py-1.5">
@@ -1523,13 +1521,21 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
                           ? `Opens at ${formatTime(hours.open)}`
                           : hours.close
                           ? `Closes at ${formatTime(hours.close)}`
-                          : 'Closed'
+                          : ''
                         }
                       </span>
                     </div>
                   );
-                })}
-              </div>
+                });
+              
+              return daysWithHours.length > 0 ? (
+                <div className="space-y-2">
+                  {daysWithHours}
+                </div>
+              ) : (
+                <p className="text-white/60 text-sm">No store hours set</p>
+              );
+            })()
             ) : business.openTime && business.closeTime ? (
               <div className="space-y-3">
                 <div className="flex justify-between items-center py-2">
