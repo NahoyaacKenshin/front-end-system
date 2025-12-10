@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -60,6 +60,7 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
   const [saving, setSaving] = useState(false);
   const [uploadingCoverPhoto, setUploadingCoverPhoto] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const hasRefreshedUserRef = useRef(false);
 
   // Convert file to base64
 
@@ -148,16 +149,23 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
     fetchBusiness();
   }, [businessId, user]);
 
-  // Refresh user data when business loads if user is the owner
+  // Refresh user data once when business loads if user is the owner with CUSTOMER role
   // This ensures role updates (CUSTOMER -> VENDOR) are detected immediately
   useEffect(() => {
-    if (business && user && user.id === business.ownerId && user.role === 'CUSTOMER') {
-      // User owns the business but still has CUSTOMER role - refresh to get updated role
+    if (business && user && user.id === business.ownerId && user.role === 'CUSTOMER' && !hasRefreshedUserRef.current) {
+      // User owns the business but still has CUSTOMER role - refresh once to get updated role
+      hasRefreshedUserRef.current = true;
       refreshUser(true).catch(err => {
         console.error('Error refreshing user on business load:', err);
       });
     }
-  }, [business, user, refreshUser]);
+    // Reset ref when business changes
+    if (business?.id) {
+      hasRefreshedUserRef.current = false;
+    }
+    // Only depend on business.id to run once per business load
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [business?.id]);
 
   const fetchDiscussions = async (businessId: number) => {
     try {
