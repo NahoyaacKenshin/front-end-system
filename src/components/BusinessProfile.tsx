@@ -1423,43 +1423,45 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
               )}
             </div>
             {editingSection === 'storeHours' ? (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
-                  <div key={day} className="flex items-center gap-2">
-                    <div className="w-24 text-sm text-white/80">{day}</div>
-                    <input
-                      type="time"
-                      value={editStoreHours[day.toLowerCase()]?.open || ''}
-                      onChange={(e) => setEditStoreHours({
-                        ...editStoreHours,
-                        [day.toLowerCase()]: { ...editStoreHours[day.toLowerCase()], open: e.target.value, close: editStoreHours[day.toLowerCase()]?.close || '' }
-                      })}
-                      className="flex-1 px-3 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#6ab8d8] transition-colors"
-                    />
-                    <span className="text-white/60">to</span>
-                    <input
-                      type="time"
-                      value={editStoreHours[day.toLowerCase()]?.close || ''}
-                      onChange={(e) => setEditStoreHours({
-                        ...editStoreHours,
-                        [day.toLowerCase()]: { ...editStoreHours[day.toLowerCase()], open: editStoreHours[day.toLowerCase()]?.open || '', close: e.target.value }
-                      })}
-                      className="flex-1 px-3 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#6ab8d8] transition-colors"
-                    />
+                  <div key={day} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2">
+                    <div className="w-full sm:w-20 sm:flex-shrink-0 text-sm text-white/80 font-medium">{day}</div>
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <input
+                        type="time"
+                        value={editStoreHours[day.toLowerCase()]?.open || ''}
+                        onChange={(e) => setEditStoreHours({
+                          ...editStoreHours,
+                          [day.toLowerCase()]: { ...editStoreHours[day.toLowerCase()], open: e.target.value, close: editStoreHours[day.toLowerCase()]?.close || '' }
+                        })}
+                        className="flex-1 min-w-0 px-2 sm:px-3 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white text-sm sm:text-base focus:outline-none focus:border-[#6ab8d8] transition-colors"
+                      />
+                      <span className="text-white/60 text-sm sm:text-base flex-shrink-0">to</span>
+                      <input
+                        type="time"
+                        value={editStoreHours[day.toLowerCase()]?.close || ''}
+                        onChange={(e) => setEditStoreHours({
+                          ...editStoreHours,
+                          [day.toLowerCase()]: { ...editStoreHours[day.toLowerCase()], open: editStoreHours[day.toLowerCase()]?.open || '', close: e.target.value }
+                        })}
+                        className="flex-1 min-w-0 px-2 sm:px-3 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-white text-sm sm:text-base focus:outline-none focus:border-[#6ab8d8] transition-colors"
+                      />
+                    </div>
                   </div>
                 ))}
-                <div className="flex gap-2 pt-2">
+                <div className="flex flex-col sm:flex-row gap-2 pt-2">
                   <button
                     onClick={handleSaveStoreHours}
                     disabled={saving}
-                    className="px-4 py-2 bg-[#6ab8d8] text-white rounded-lg font-medium hover:bg-[#5aa8c8] transition-colors disabled:opacity-50"
+                    className="w-full sm:w-auto px-4 py-2 bg-[#6ab8d8] text-white rounded-lg font-medium hover:bg-[#5aa8c8] transition-colors disabled:opacity-50"
                   >
                     {saving ? 'Saving...' : 'Save'}
                   </button>
                   <button
                     onClick={cancelEditing}
                     disabled={saving}
-                    className="px-4 py-2 bg-[#2a2a2a] border border-white/10 text-white rounded-lg font-medium hover:bg-[#1a1a1a] transition-colors disabled:opacity-50"
+                    className="w-full sm:w-auto px-4 py-2 bg-[#2a2a2a] border border-white/10 text-white rounded-lg font-medium hover:bg-[#1a1a1a] transition-colors disabled:opacity-50"
                   >
                     Cancel
                   </button>
