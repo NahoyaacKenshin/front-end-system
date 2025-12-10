@@ -181,9 +181,27 @@ export default function AddBusinessPage() {
       const response = await api.createBusiness(businessData);
 
       if (response.success) {
-        // Refresh user data to get updated role (CUSTOMER -> VENDOR)
+        // Force refresh user data to get updated role (CUSTOMER -> VENDOR)
         // This ensures the user can edit their business immediately
-        await refreshUser();
+        // Wait a bit for database transaction to complete, then refresh
+        const refreshWithRetry = async (retries = 3, delay = 500) => {
+          for (let i = 0; i < retries; i++) {
+            try {
+              await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
+              await refreshUser(true);
+              console.log('User role refreshed successfully');
+              return;
+            } catch (error) {
+              console.log(`Refresh attempt ${i + 1} failed:`, error);
+              if (i === retries - 1) {
+                console.error('All refresh attempts failed');
+              }
+            }
+          }
+        };
+
+        // Start refresh in background (don't block redirect)
+        refreshWithRetry();
         
         // Redirect to the new business page
         router.push(`/business/${response.data.id}`);

@@ -12,7 +12,7 @@ interface AuthContextType {
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   setAuthData: (tokens: AuthTokens, userData: User) => void;
-  refreshUser: () => Promise<void>;
+  refreshUser: (force?: boolean) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -72,7 +72,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const refreshUser = useCallback(async (): Promise<void> => {
+  const refreshUser = useCallback(async (force: boolean = false): Promise<void> => {
     try {
       const accessToken = localStorage.getItem('accessToken');
       if (!accessToken) {
@@ -90,17 +90,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const userData = response.data;
         const newRole = userData.role;
 
-        // Only update if role has changed
-        if (currentRole && newRole && currentRole !== newRole) {
+        // If force is true, always update user data (e.g., after business creation)
+        // Otherwise, only update if role has changed or no current user
+        if (force || !currentUser || (currentRole && newRole && currentRole !== newRole)) {
           localStorage.setItem('user', JSON.stringify(userData));
           setUser(userData);
-          console.log(`User role changed from ${currentRole} to ${newRole}`);
-        } else if (!currentUser) {
-          // If no current user, always set it
-          localStorage.setItem('user', JSON.stringify(userData));
-          setUser(userData);
+          if (currentRole && newRole && currentRole !== newRole) {
+            console.log(`User role changed from ${currentRole} to ${newRole}`);
+          } else if (force) {
+            console.log('User data refreshed (forced)');
+          }
         }
-        // If role hasn't changed, don't update (no unnecessary re-renders)
+        // If role hasn't changed and not forced, don't update (no unnecessary re-renders)
       } else {
         // If API call fails, fall back to stored user
         if (storedUser) {

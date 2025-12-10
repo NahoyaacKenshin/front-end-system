@@ -29,7 +29,7 @@ interface Socials {
 
 export default function BusinessProfile({ businessId, readOnly = false }: BusinessProfileProps) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -147,6 +147,17 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
 
     fetchBusiness();
   }, [businessId, user]);
+
+  // Refresh user data when business loads if user is the owner
+  // This ensures role updates (CUSTOMER -> VENDOR) are detected immediately
+  useEffect(() => {
+    if (business && user && user.id === business.ownerId && user.role === 'CUSTOMER') {
+      // User owns the business but still has CUSTOMER role - refresh to get updated role
+      refreshUser(true).catch(err => {
+        console.error('Error refreshing user on business load:', err);
+      });
+    }
+  }, [business, user, refreshUser]);
 
   const fetchDiscussions = async (businessId: number) => {
     try {
