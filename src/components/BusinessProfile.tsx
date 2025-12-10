@@ -650,8 +650,20 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
   const handleSaveStoreHours = async () => {
     if (!business) return;
     
-    const storeHoursString = Object.keys(editStoreHours).length > 0 
-      ? JSON.stringify(editStoreHours) 
+    // Filter out days that don't have both open and close times
+    const validStoreHours: { [key: string]: { open: string; close: string } } = {};
+    Object.keys(editStoreHours).forEach(day => {
+      const hours = editStoreHours[day];
+      if (hours && hours.open && hours.close) {
+        validStoreHours[day] = {
+          open: hours.open,
+          close: hours.close
+        };
+      }
+    });
+    
+    const storeHoursString = Object.keys(validStoreHours).length > 0 
+      ? JSON.stringify(validStoreHours) 
       : null;
     
     await saveBusinessUpdate({ openTime: storeHoursString });
@@ -1418,7 +1430,7 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                     <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
                   </svg>
-                  {business.openTime && business.closeTime ? 'Edit' : 'Add'}
+                  {business.openTime ? 'Edit' : 'Add'}
                 </button>
               )}
             </div>
@@ -1467,11 +1479,13 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
                   </button>
                 </div>
               </div>
-            ) : business.openTime && business.closeTime ? (
+            ) : business.openTime ? (
               <div className="space-y-3">
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-base font-medium text-white">Open Hours</span>
-                  <span className="text-base text-white/80">{storeHours}</span>
+                <div className="flex flex-col gap-2">
+                  <span className="text-base font-medium text-white mb-2">Store Hours</span>
+                  <div className="text-sm text-white/80 whitespace-pre-line">
+                    {storeHours}
+                  </div>
                 </div>
               </div>
             ) : (
