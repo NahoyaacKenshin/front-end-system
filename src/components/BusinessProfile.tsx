@@ -1103,22 +1103,6 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
                     )}
                   </div>
                 ))}
-                  {canEdit && (
-                    <label className="aspect-square rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center cursor-pointer hover:border-[#6ab8d8] transition-colors">
-                      <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" className="text-white/60">
-                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                      </svg>
-                      <p className="text-white/60 mt-2 text-sm">Add Photo</p>
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        onChange={handleGalleryUpload}
-                        disabled={galleryUploading}
-                        style={{ display: 'none' }}
-                      />
-                    </label>
-                  )}
               </div>
             ) : (
               <div className="text-center py-12">
