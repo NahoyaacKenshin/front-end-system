@@ -957,7 +957,7 @@ function BusinessesContent() {
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex justify-center items-center gap-3 mt-8">
+                <div className="flex flex-wrap justify-center items-center gap-3 mt-8">
                   <button
                     onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                     disabled={currentPage === 1}
