@@ -25,6 +25,7 @@ export default function MyBusinessesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingBusiness, setDeletingBusiness] = useState<number | null>(null);
+  const [favoriteCounts, setFavoriteCounts] = useState<Map<number, number>>(new Map());
   const router = useRouter();
   const { user, isLoading } = useAuth();
 
@@ -102,6 +103,41 @@ export default function MyBusinessesPage() {
 
     loadBusinesses();
   }, [user, isLoading, router]);
+
+  // Load favorite counts when businesses are loaded
+  useEffect(() => {
+    if (businesses.length > 0) {
+      loadFavoriteCounts();
+    }
+  }, [businesses]);
+
+  const loadFavoriteCounts = async () => {
+    if (businesses.length === 0) return;
+    
+    try {
+      const counts = new Map<number, number>();
+      
+      // Fetch favorite counts for all businesses in parallel
+      const promises = businesses.map(async (business) => {
+        try {
+          const response = await api.getBusinessFavoriteCount(business.id);
+          if (response.success && response.data) {
+            counts.set(business.id, response.data.count || 0);
+          } else {
+            counts.set(business.id, 0);
+          }
+        } catch (error) {
+          console.error(`Error loading favorite count for business ${business.id}:`, error);
+          counts.set(business.id, 0);
+        }
+      });
+      
+      await Promise.all(promises);
+      setFavoriteCounts(counts);
+    } catch (error) {
+      console.error('Error loading favorite counts:', error);
+    }
+  };
 
   const handleViewBusiness = (id: number) => {
     router.push(`/business/${id}?mode=view`);
@@ -216,6 +252,23 @@ export default function MyBusinessesPage() {
                       </span>
                     </div>
                   )}
+                  {/* Favorite Counter */}
+                  <div className="absolute top-2 left-2 z-20">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-black/70 backdrop-blur-md rounded-full border border-white/30 shadow-[0_4px_15px_rgba(0,0,0,0.3)]">
+                      <svg 
+                        viewBox="0 0 24 24" 
+                        width="16" 
+                        height="16" 
+                        fill="currentColor"
+                        className="text-red-500"
+                      >
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                      </svg>
+                      <span className="text-white text-sm font-semibold">
+                        {favoriteCounts.get(business.id) ?? 0}
+                      </span>
+                    </div>
+                  </div>
                   {/* Verification Badge */}
                   {business.isVerified && (
                     <div className="absolute top-2 right-2 px-2 py-1 bg-green-500/90 backdrop-blur-sm text-white rounded-full text-xs font-semibold flex items-center gap-1">

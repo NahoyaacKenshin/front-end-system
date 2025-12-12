@@ -204,7 +204,7 @@ export default function HomePage() {
     <div className="min-h-screen flex flex-col">
       <Navbar />
 
-      <div ref={heroRef} id="hero-section" className="min-h-[50vh] sm:min-h-[60vh] flex items-center justify-center pt-[100px] sm:pt-[120px] pb-[40px] sm:pb-[60px] px-4 sm:px-5 text-white relative overflow-hidden">
+      <div ref={heroRef} id="hero-section" className="min-h-[50vh] sm:min-h-[60vh] flex items-center justify-center pt-[100px] sm:pt-[120px] pb-[40px] sm:pb-[60px] px-4 sm:px-5 text-white relative overflow-visible">
         <img src="/Parola.jpg" alt="Background" className="absolute top-0 left-0 w-full h-full object-cover brightness-[0.6] z-0" />
         <div className="max-w-[900px] w-full text-center relative z-10">
           <h1 className={`text-6xl md:text-5xl sm:text-4xl font-bold mb-5 tracking-[4px] drop-shadow-[0_2px_10px_rgba(0,0,0,0.3)] transition-all duration-800 ${visibleElements.has('hero-section') ? 'animate-fade-in-down opacity-100' : 'opacity-0'}`} style={{ animationDelay: '0.2s' }}>EXPLORE CORDOVA</h1>

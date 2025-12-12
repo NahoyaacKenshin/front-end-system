@@ -72,12 +72,12 @@ function BusinessesContent() {
     }
   }, [searchParams]);
 
-  // Load favorite counts when sorting by favorites
+  // Load favorite counts for all businesses
   useEffect(() => {
-    if (sortOption === 'highest-favorites' || sortOption === 'lowest-favorites') {
+    if (businesses.length > 0) {
       loadFavoriteCounts();
     }
-  }, [sortOption, businesses]);
+  }, [businesses]);
 
   // Apply filters and sorting
   useEffect(() => {
@@ -316,7 +316,7 @@ function BusinessesContent() {
       <Navbar />
 
       {/* Search Bar Section with Background Image */}
-      <div className="pt-[100px] sm:pt-[120px] pb-[40px] sm:pb-[60px] px-4 sm:px-5 text-white relative overflow-hidden">
+      <div className="pt-[100px] sm:pt-[120px] pb-[40px] sm:pb-[60px] px-4 sm:px-5 text-white relative overflow-visible">
         {/* Background Image */}
         <div className="absolute inset-0 z-0">
           <img 
@@ -908,6 +908,24 @@ function BusinessesContent() {
                         <span className="px-4 py-2 bg-gradient-to-br from-[#0f4c75]/95 to-[#1b627d]/95 backdrop-blur-md rounded-full text-white text-sm font-semibold border border-white/30 shadow-[0_4px_15px_rgba(0,0,0,0.3)]">
                           {getCategoryLabel(business.category)}
                         </span>
+                      </div>
+
+                      {/* Favorite Counter */}
+                      <div className="absolute top-4 right-4 z-20">
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-black/70 backdrop-blur-md rounded-full border border-white/30 shadow-[0_4px_15px_rgba(0,0,0,0.3)]">
+                          <svg 
+                            viewBox="0 0 24 24" 
+                            width="16" 
+                            height="16" 
+                            fill="currentColor"
+                            className="text-red-500"
+                          >
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                          </svg>
+                          <span className="text-white text-sm font-semibold">
+                            {favoriteCounts.get(business.id) ?? 0}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
