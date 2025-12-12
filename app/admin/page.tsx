@@ -4,6 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { api } from '../../src/services/api';
+import SuccessModal from '../../src/components/SuccessModal';
+import ErrorModal from '../../src/components/ErrorModal';
+import ConfirmationModal from '../../src/components/ConfirmationModal';
 
 type Tab = 'dashboard' | 'users' | 'businesses' | 'verifications';
 
@@ -65,6 +68,7 @@ interface Verification {
   business: {
     id: number;
     name: string;
+    isVerified: boolean;
     owner: {
       name: string | null;
       email: string | null;
@@ -107,6 +111,15 @@ export default function AdminPage() {
   const [updatingVerification, setUpdatingVerification] = useState<number | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<string | null>(null);
   const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
+  
+  // Modal states
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
+  const [modalTitle, setModalTitle] = useState('');
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
+  const [confirmButtonText, setConfirmButtonText] = useState('Confirm');
 
   // Check if user is admin - wait for auth to load first
   useEffect(() => {
@@ -238,149 +251,230 @@ export default function AdminPage() {
     
     // Prevent changing admin roles
     if (user?.role === 'ADMIN') {
-      alert('Cannot change the role of an admin user');
+      setModalTitle('Error');
+      setModalMessage('Cannot change the role of an admin user');
+      setShowErrorModal(true);
       return;
     }
 
-    if (!confirm(`Are you sure you want to change this user's role to ${newRole}?`)) return;
-
-    try {
-      setUpdatingUser(userId);
-      const response = await api.updateUserRole(userId, newRole);
-      if (response.success) {
-        await loadUsers();
-        await loadDashboardStats();
-      } else {
-        alert(response.message || 'Failed to update user role');
+    setModalTitle('Change User Role');
+    setModalMessage(`Are you sure you want to change this user's role to ${newRole}?`);
+    setConfirmButtonText('Change Role');
+    setConfirmAction(() => async () => {
+      try {
+        setUpdatingUser(userId);
+        const response = await api.updateUserRole(userId, newRole);
+        if (response.success) {
+          await loadUsers();
+          await loadDashboardStats();
+          setModalTitle('Success');
+          setModalMessage(`User role changed to ${newRole} successfully!`);
+          setShowSuccessModal(true);
+        } else {
+          setModalTitle('Error');
+          setModalMessage(response.message || 'Failed to update user role');
+          setShowErrorModal(true);
+        }
+      } catch (err: any) {
+        console.error('Error updating user role:', err);
+        setModalTitle('Error');
+        setModalMessage(err.response?.data?.message || 'Failed to update user role');
+        setShowErrorModal(true);
+      } finally {
+        setUpdatingUser(null);
       }
-    } catch (err: any) {
-      console.error('Error updating user role:', err);
-      alert(err.response?.data?.message || 'Failed to update user role');
-    } finally {
-      setUpdatingUser(null);
-    }
+    });
+    setShowConfirmModal(true);
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
-
-    try {
-      setUpdatingUser(userId);
-      const response = await api.deleteUser(userId);
-      if (response.success) {
-        await loadUsers();
-        await loadDashboardStats();
-      } else {
-        alert(response.message || 'Failed to delete user');
+  const handleDeleteUser = (userId: string) => {
+    setModalTitle('Delete User');
+    setModalMessage('Are you sure you want to delete this user? This action cannot be undone.');
+    setConfirmButtonText('Delete');
+    setConfirmAction(() => async () => {
+      try {
+        setUpdatingUser(userId);
+        const response = await api.deleteUser(userId);
+        if (response.success) {
+          await loadUsers();
+          await loadDashboardStats();
+          setModalTitle('Success');
+          setModalMessage('User deleted successfully!');
+          setShowSuccessModal(true);
+        } else {
+          setModalTitle('Error');
+          setModalMessage(response.message || 'Failed to delete user');
+          setShowErrorModal(true);
+        }
+      } catch (err: any) {
+        console.error('Error deleting user:', err);
+        setModalTitle('Error');
+        setModalMessage(err.response?.data?.message || 'Failed to delete user');
+        setShowErrorModal(true);
+      } finally {
+        setUpdatingUser(null);
       }
-    } catch (err: any) {
-      console.error('Error deleting user:', err);
-      alert(err.response?.data?.message || 'Failed to delete user');
-    } finally {
-      setUpdatingUser(null);
-    }
+    });
+    setShowConfirmModal(true);
   };
 
-  const handleVerifyBusiness = async (businessId: number) => {
-    if (!confirm('Are you sure you want to verify this business?')) return;
-
-    try {
-      setUpdatingBusiness(businessId);
-      const response = await api.verifyBusiness(businessId);
-      if (response.success) {
-        await loadBusinesses();
-        await loadDashboardStats();
-        await loadVerifications();
-      } else {
-        alert(response.message || 'Failed to verify business');
+  const handleVerifyBusiness = (businessId: number) => {
+    setModalTitle('Verify Business');
+    setModalMessage('Are you sure you want to verify this business?');
+    setConfirmButtonText('Verify');
+    setConfirmAction(() => async () => {
+      try {
+        setUpdatingBusiness(businessId);
+        const response = await api.verifyBusiness(businessId);
+        if (response.success) {
+          await loadBusinesses();
+          await loadDashboardStats();
+          await loadVerifications();
+          setModalTitle('Success');
+          setModalMessage('Business verified successfully!');
+          setShowSuccessModal(true);
+        } else {
+          setModalTitle('Error');
+          setModalMessage(response.message || 'Failed to verify business');
+          setShowErrorModal(true);
+        }
+      } catch (err: any) {
+        console.error('Error verifying business:', err);
+        setModalTitle('Error');
+        setModalMessage(err.response?.data?.message || 'Failed to verify business');
+        setShowErrorModal(true);
+      } finally {
+        setUpdatingBusiness(null);
       }
-    } catch (err: any) {
-      console.error('Error verifying business:', err);
-      alert(err.response?.data?.message || 'Failed to verify business');
-    } finally {
-      setUpdatingBusiness(null);
-    }
+    });
+    setShowConfirmModal(true);
   };
 
-  const handleUnverifyBusiness = async (businessId: number) => {
-    if (!confirm('Are you sure you want to unverify this business?')) return;
-
-    try {
-      setUpdatingBusiness(businessId);
-      const response = await api.unverifyBusiness(businessId);
-      if (response.success) {
-        await loadBusinesses();
-        await loadDashboardStats();
-      } else {
-        alert(response.message || 'Failed to unverify business');
+  const handleUnverifyBusiness = (businessId: number) => {
+    setModalTitle('Unverify Business');
+    setModalMessage('Are you sure you want to unverify this business?');
+    setConfirmButtonText('Unverify');
+    setConfirmAction(() => async () => {
+      try {
+        setUpdatingBusiness(businessId);
+        const response = await api.unverifyBusiness(businessId);
+        if (response.success) {
+          await loadBusinesses();
+          await loadDashboardStats();
+          await loadVerifications();
+          setModalTitle('Success');
+          setModalMessage('Business unverified successfully!');
+          setShowSuccessModal(true);
+        } else {
+          setModalTitle('Error');
+          setModalMessage(response.message || 'Failed to unverify business');
+          setShowErrorModal(true);
+        }
+      } catch (err: any) {
+        console.error('Error unverifying business:', err);
+        setModalTitle('Error');
+        setModalMessage(err.response?.data?.message || 'Failed to unverify business');
+        setShowErrorModal(true);
+      } finally {
+        setUpdatingBusiness(null);
       }
-    } catch (err: any) {
-      console.error('Error unverifying business:', err);
-      alert(err.response?.data?.message || 'Failed to unverify business');
-    } finally {
-      setUpdatingBusiness(null);
-    }
+    });
+    setShowConfirmModal(true);
   };
 
-  const handleDeleteBusiness = async (businessId: number) => {
-    if (!confirm('Are you sure you want to delete this business? This action cannot be undone.')) return;
-
-    try {
-      setUpdatingBusiness(businessId);
-      const response = await api.deleteBusinessAdmin(businessId);
-      if (response.success) {
-        await loadBusinesses();
-        await loadDashboardStats();
-      } else {
-        alert(response.message || 'Failed to delete business');
+  const handleDeleteBusiness = (businessId: number) => {
+    setModalTitle('Delete Business');
+    setModalMessage('Are you sure you want to delete this business? This action cannot be undone.');
+    setConfirmButtonText('Delete');
+    setConfirmAction(() => async () => {
+      try {
+        setUpdatingBusiness(businessId);
+        const response = await api.deleteBusinessAdmin(businessId);
+        if (response.success) {
+          await loadBusinesses();
+          await loadDashboardStats();
+          await loadVerifications();
+          setModalTitle('Success');
+          setModalMessage('Business deleted successfully!');
+          setShowSuccessModal(true);
+        } else {
+          setModalTitle('Error');
+          setModalMessage(response.message || 'Failed to delete business');
+          setShowErrorModal(true);
+        }
+      } catch (err: any) {
+        console.error('Error deleting business:', err);
+        setModalTitle('Error');
+        setModalMessage(err.response?.data?.message || 'Failed to delete business');
+        setShowErrorModal(true);
+      } finally {
+        setUpdatingBusiness(null);
       }
-    } catch (err: any) {
-      console.error('Error deleting business:', err);
-      alert(err.response?.data?.message || 'Failed to delete business');
-    } finally {
-      setUpdatingBusiness(null);
-    }
+    });
+    setShowConfirmModal(true);
   };
 
-  const handleApproveVerification = async (verificationId: number) => {
-    if (!confirm('Are you sure you want to approve this verification request?')) return;
-
-    try {
-      setUpdatingVerification(verificationId);
-      const response = await api.approveVerification(verificationId);
-      if (response.success) {
-        await loadVerifications();
-        await loadDashboardStats();
-        await loadBusinesses();
-      } else {
-        alert(response.message || 'Failed to approve verification');
+  const handleApproveVerification = (verificationId: number) => {
+    setModalTitle('Approve Verification');
+    setModalMessage('Are you sure you want to approve this verification request?');
+    setConfirmButtonText('Approve');
+    setConfirmAction(() => async () => {
+      try {
+        setUpdatingVerification(verificationId);
+        const response = await api.approveVerification(verificationId);
+        if (response.success) {
+          await loadVerifications();
+          await loadDashboardStats();
+          await loadBusinesses();
+          setModalTitle('Success');
+          setModalMessage('Verification approved successfully!');
+          setShowSuccessModal(true);
+        } else {
+          setModalTitle('Error');
+          setModalMessage(response.message || 'Failed to approve verification');
+          setShowErrorModal(true);
+        }
+      } catch (err: any) {
+        console.error('Error approving verification:', err);
+        setModalTitle('Error');
+        setModalMessage(err.response?.data?.message || 'Failed to approve verification');
+        setShowErrorModal(true);
+      } finally {
+        setUpdatingVerification(null);
       }
-    } catch (err: any) {
-      console.error('Error approving verification:', err);
-      alert(err.response?.data?.message || 'Failed to approve verification');
-    } finally {
-      setUpdatingVerification(null);
-    }
+    });
+    setShowConfirmModal(true);
   };
 
-  const handleRejectVerification = async (verificationId: number) => {
-    if (!confirm('Are you sure you want to reject this verification request?')) return;
-
-    try {
-      setUpdatingVerification(verificationId);
-      const response = await api.rejectVerification(verificationId);
-      if (response.success) {
-        await loadVerifications();
-        await loadDashboardStats();
-      } else {
-        alert(response.message || 'Failed to reject verification');
+  const handleRejectVerification = (verificationId: number) => {
+    setModalTitle('Reject Verification');
+    setModalMessage('Are you sure you want to reject this verification request?');
+    setConfirmButtonText('Reject');
+    setConfirmAction(() => async () => {
+      try {
+        setUpdatingVerification(verificationId);
+        const response = await api.rejectVerification(verificationId);
+        if (response.success) {
+          await loadVerifications();
+          await loadDashboardStats();
+          setModalTitle('Success');
+          setModalMessage('Verification rejected successfully!');
+          setShowSuccessModal(true);
+        } else {
+          setModalTitle('Error');
+          setModalMessage(response.message || 'Failed to reject verification');
+          setShowErrorModal(true);
+        }
+      } catch (err: any) {
+        console.error('Error rejecting verification:', err);
+        setModalTitle('Error');
+        setModalMessage(err.response?.data?.message || 'Failed to reject verification');
+        setShowErrorModal(true);
+      } finally {
+        setUpdatingVerification(null);
       }
-    } catch (err: any) {
-      console.error('Error rejecting verification:', err);
-      alert(err.response?.data?.message || 'Failed to reject verification');
-    } finally {
-      setUpdatingVerification(null);
-    }
+    });
+    setShowConfirmModal(true);
   };
 
   const handleViewDocument = (documentUrl: string) => {
@@ -662,7 +756,6 @@ export default function AdminPage() {
                           <th className="px-4 py-3 text-left text-sm font-medium text-white/60">Role</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-white/60">Businesses</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-white/60">Verified</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-white/60">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -695,15 +788,6 @@ export default function AdminPage() {
                               ) : (
                                 <span className="px-2 py-1 bg-yellow-500/10 text-yellow-400 rounded text-xs">Pending</span>
                               )}
-                            </td>
-                            <td className="px-4 py-3">
-                              <button
-                                onClick={() => handleDeleteUser(user.id)}
-                                disabled={updatingUser === user.id}
-                                className="px-3 py-1 bg-red-500/10 text-red-400 rounded text-sm hover:bg-red-500/20 transition-colors disabled:opacity-50"
-                              >
-                                Delete
-                              </button>
                             </td>
                           </tr>
                         ))}
@@ -784,7 +868,6 @@ export default function AdminPage() {
                           <th className="px-4 py-3 text-left text-sm font-medium text-white/60">Category</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-white/60">Owner</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-white/60">Status</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-white/60">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -806,34 +889,6 @@ export default function AdminPage() {
                               ) : (
                                 <span className="px-2 py-1 bg-yellow-500/10 text-yellow-400 rounded text-xs">Pending</span>
                               )}
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex gap-2">
-                                {business.isVerified ? (
-                                  <button
-                                    onClick={() => handleUnverifyBusiness(business.id)}
-                                    disabled={updatingBusiness === business.id}
-                                    className="px-3 py-1 bg-yellow-500/10 text-yellow-400 rounded text-sm hover:bg-yellow-500/20 transition-colors disabled:opacity-50"
-                                  >
-                                    Unverify
-                                  </button>
-                                ) : (
-                                  <button
-                                    onClick={() => handleVerifyBusiness(business.id)}
-                                    disabled={updatingBusiness === business.id}
-                                    className="px-3 py-1 bg-green-500/10 text-green-400 rounded text-sm hover:bg-green-500/20 transition-colors disabled:opacity-50"
-                                  >
-                                    Verify
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => handleDeleteBusiness(business.id)}
-                                  disabled={updatingBusiness === business.id}
-                                  className="px-3 py-1 bg-red-500/10 text-red-400 rounded text-sm hover:bg-red-500/20 transition-colors disabled:opacity-50"
-                                >
-                                  Delete
-                                </button>
-                              </div>
                             </td>
                           </tr>
                         ))}
@@ -956,25 +1011,55 @@ export default function AdminPage() {
                                     </button>
                                   )}
                                   {verification.status === 'PENDING' && (
-                                    <div className="flex gap-2">
-                                      <button
-                                        onClick={() => handleApproveVerification(verification.id)}
-                                        disabled={updatingVerification === verification.id}
-                                        className="px-3 py-1 bg-green-500/10 text-green-400 rounded text-sm hover:bg-green-500/20 transition-colors disabled:opacity-50"
-                                      >
-                                        Approve
-                                      </button>
-                                      <button
-                                        onClick={() => handleRejectVerification(verification.id)}
-                                        disabled={updatingVerification === verification.id}
-                                        className="px-3 py-1 bg-red-500/10 text-red-400 rounded text-sm hover:bg-red-500/20 transition-colors disabled:opacity-50"
-                                      >
-                                        Reject
-                                      </button>
+                                    <div className="flex flex-col gap-2">
+                                      <div className="flex gap-2">
+                                        <button
+                                          onClick={() => handleApproveVerification(verification.id)}
+                                          disabled={updatingVerification === verification.id}
+                                          className="px-3 py-1 bg-green-500/10 text-green-400 rounded text-sm hover:bg-green-500/20 transition-colors disabled:opacity-50"
+                                        >
+                                          Approve
+                                        </button>
+                                        <button
+                                          onClick={() => handleRejectVerification(verification.id)}
+                                          disabled={updatingVerification === verification.id}
+                                          className="px-3 py-1 bg-red-500/10 text-red-400 rounded text-sm hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                                        >
+                                          Reject
+                                        </button>
+                                      </div>
                                     </div>
                                   )}
-                                  {verification.status !== 'PENDING' && (
-                                    <span className="text-white/40 text-sm">No actions available</span>
+                                  {verification.businessId && verification.business && (
+                                    <div className="flex flex-col gap-2 pt-2 border-t border-white/10">
+                                      <div className="text-xs text-white/60 mb-1">Business Actions</div>
+                                      <div className="flex flex-wrap gap-2">
+                                        {verification.business.isVerified ? (
+                                          <button
+                                            onClick={() => handleUnverifyBusiness(verification.businessId!)}
+                                            disabled={updatingBusiness === verification.businessId}
+                                            className="px-3 py-1 bg-yellow-500/10 text-yellow-400 rounded text-sm hover:bg-yellow-500/20 transition-colors disabled:opacity-50"
+                                          >
+                                            Unverify Business
+                                          </button>
+                                        ) : (
+                                          <button
+                                            onClick={() => handleVerifyBusiness(verification.businessId!)}
+                                            disabled={updatingBusiness === verification.businessId}
+                                            className="px-3 py-1 bg-green-500/10 text-green-400 rounded text-sm hover:bg-green-500/20 transition-colors disabled:opacity-50"
+                                          >
+                                            Verify Business
+                                          </button>
+                                        )}
+                                        <button
+                                          onClick={() => handleDeleteBusiness(verification.businessId!)}
+                                          disabled={updatingBusiness === verification.businessId}
+                                          className="px-3 py-1 bg-red-500/10 text-red-400 rounded text-sm hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                                        >
+                                          Delete Business
+                                        </button>
+                                      </div>
+                                    </div>
                                   )}
                                 </div>
                               </td>
@@ -990,6 +1075,43 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+
+      {/* Success Modal */}
+      <SuccessModal
+        isOpen={showSuccessModal}
+        title={modalTitle}
+        message={modalMessage}
+        onClose={() => setShowSuccessModal(false)}
+      />
+
+      {/* Error Modal */}
+      <ErrorModal
+        isOpen={showErrorModal}
+        title={modalTitle}
+        message={modalMessage}
+        onClose={() => setShowErrorModal(false)}
+      />
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        title={modalTitle}
+        message={modalMessage}
+        confirmText={confirmButtonText}
+        cancelText="Cancel"
+        confirmButtonStyle="danger"
+        onConfirm={() => {
+          if (confirmAction) {
+            confirmAction();
+          }
+          setShowConfirmModal(false);
+          setConfirmAction(null);
+        }}
+        onCancel={() => {
+          setShowConfirmModal(false);
+          setConfirmAction(null);
+        }}
+      />
 
       {/* Document Viewer Modal */}
       {isDocumentModalOpen && selectedDocument && (

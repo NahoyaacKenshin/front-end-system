@@ -8,6 +8,11 @@ import type { Business, Discussion } from '../types';
 import Navbar from './Layout/Navbar';
 import { optimizeImage, fileToBase64 } from '../utils/imageOptimization';
 import SimpleMapPicker from './SimpleMapPicker';
+import { CATEGORY_LIST } from '../constants/categories';
+import { BARANGAYS } from '../constants/barangays';
+import SuccessModal from './SuccessModal';
+import ErrorModal from './ErrorModal';
+import ConfirmationModal from './ConfirmationModal';
 
 interface BusinessProfileProps {
   businessId?: string;
@@ -51,6 +56,8 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
   // Edit mode states
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [editDescription, setEditDescription] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editBarangay, setEditBarangay] = useState('');
   const [editContactInfo, setEditContactInfo] = useState<ContactInfo>({});
   const [editSocials, setEditSocials] = useState<Socials>({});
   const [editLocation, setEditLocation] = useState('');
@@ -60,6 +67,15 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
   const [saving, setSaving] = useState(false);
   const [uploadingCoverPhoto, setUploadingCoverPhoto] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  
+  // Modal states
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
+  const [modalTitle, setModalTitle] = useState('');
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
+  const [deleteImageIndex, setDeleteImageIndex] = useState<number | null>(null);
 
   // Convert file to base64
 
@@ -148,6 +164,32 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
     fetchBusiness();
   }, [businessId, user]);
 
+  // Handle scrolling to discussions section when hash is present
+  useEffect(() => {
+    const scrollToDiscussions = () => {
+      if (window.location.hash === '#discussions') {
+        // Wait for the page to load and discussions section to render
+        setTimeout(() => {
+          const discussionsElement = document.getElementById('discussions');
+          if (discussionsElement) {
+            discussionsElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 500); // Small delay to ensure content is rendered
+      }
+    };
+
+    // Scroll on initial load if hash is present
+    scrollToDiscussions();
+
+    // Listen for hash changes (when navigating from same page)
+    const handleHashChange = () => {
+      scrollToDiscussions();
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [business, discussions]);
+
   const fetchDiscussions = async (businessId: number) => {
     try {
       setDiscussionsLoading(true);
@@ -178,12 +220,19 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
         setNewDiscussionContent('');
         // Refresh discussions
         await fetchDiscussions(business.id);
+        setModalTitle('Success');
+        setModalMessage('Discussion posted successfully!');
+        setShowSuccessModal(true);
       } else {
-        alert(response.message || 'Failed to post discussion');
+        setModalTitle('Error');
+        setModalMessage(response.message || 'Failed to post discussion');
+        setShowErrorModal(true);
       }
     } catch (err: any) {
       console.error('Error creating discussion:', err);
-      alert(err.response?.data?.message || err.message || 'Failed to post discussion');
+      setModalTitle('Error');
+      setModalMessage(err.response?.data?.message || err.message || 'Failed to post discussion');
+      setShowErrorModal(true);
     } finally {
       setSubmittingDiscussion(false);
     }
@@ -201,12 +250,19 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
         setReplyingTo(null);
         // Refresh discussions
         await fetchDiscussions(business.id);
+        setModalTitle('Success');
+        setModalMessage('Reply posted successfully!');
+        setShowSuccessModal(true);
       } else {
-        alert(response.message || 'Failed to post reply');
+        setModalTitle('Error');
+        setModalMessage(response.message || 'Failed to post reply');
+        setShowErrorModal(true);
       }
     } catch (err: any) {
       console.error('Error creating reply:', err);
-      alert(err.response?.data?.message || err.message || 'Failed to post reply');
+      setModalTitle('Error');
+      setModalMessage(err.response?.data?.message || err.message || 'Failed to post reply');
+      setShowErrorModal(true);
     } finally {
       setSubmittingReply({ ...submittingReply, [discussionId]: false });
     }
@@ -397,6 +453,9 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
     
     if (section === 'description') {
       setEditDescription(business.description);
+    } else if (section === 'basicInfo') {
+      setEditCategory(business.category || '');
+      setEditBarangay(business.barangay || '');
     } else if (section === 'contact') {
       const contactInfo = parseContactInfo(business.contactInfo);
       setEditContactInfo(contactInfo);
@@ -420,6 +479,8 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
   const cancelEditing = () => {
     setEditingSection(null);
     setEditDescription('');
+    setEditCategory('');
+    setEditBarangay('');
     setEditContactInfo({});
     setEditSocials({});
     setEditLocation('');
@@ -429,7 +490,7 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
   };
 
   // Save business updates
-  const saveBusinessUpdate = async (updates: any) => {
+  const saveBusinessUpdate = async (updates: any, successMessage?: string) => {
     if (!business) return;
     
     try {
@@ -441,12 +502,21 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
         console.log('Business updated:', { id: updatedBusiness.id, logo: updatedBusiness.logo, coverPhoto: updatedBusiness.coverPhoto });
         setBusiness(updatedBusiness);
         setEditingSection(null);
+        if (successMessage) {
+          setModalTitle('Success');
+          setModalMessage(successMessage);
+          setShowSuccessModal(true);
+        }
       } else {
-        alert(response.message || 'Failed to update business');
+        setModalTitle('Error');
+        setModalMessage(response.message || 'Failed to update business');
+        setShowErrorModal(true);
       }
     } catch (err: any) {
       console.error('Error updating business:', err);
-      alert(err.response?.data?.message || err.message || 'Failed to update business');
+      setModalTitle('Error');
+      setModalMessage(err.response?.data?.message || err.message || 'Failed to update business');
+      setShowErrorModal(true);
     } finally {
       setSaving(false);
     }
@@ -460,17 +530,21 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('Cover photo must be less than 5MB');
+      setModalTitle('File Too Large');
+      setModalMessage('Cover photo must be less than 5MB');
+      setShowErrorModal(true);
       return;
     }
 
     try {
       setUploadingCoverPhoto(true);
       const base64 = await optimizeImage(file, 'COVER_PHOTO');
-      await saveBusinessUpdate({ coverPhoto: base64 });
+      await saveBusinessUpdate({ coverPhoto: base64 }, 'Cover photo updated successfully!');
     } catch (err) {
       console.error('Error uploading cover photo:', err);
-      alert('Failed to upload cover photo');
+      setModalTitle('Upload Failed');
+      setModalMessage('Failed to upload cover photo');
+      setShowErrorModal(true);
     } finally {
       setUploadingCoverPhoto(false);
       e.target.value = '';
@@ -493,7 +567,9 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
     console.log('Logo upload started:', { fileName: file.name, fileSize: file.size });
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('Logo must be less than 5MB');
+      setModalTitle('File Too Large');
+      setModalMessage('Logo must be less than 5MB');
+      setShowErrorModal(true);
       return;
     }
 
@@ -502,11 +578,13 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
       console.log('Optimizing and converting logo...');
       const base64 = await optimizeImage(file, 'LOGO');
       console.log('Logo optimization complete, updating business...');
-      await saveBusinessUpdate({ logo: base64 });
+      await saveBusinessUpdate({ logo: base64 }, 'Logo updated successfully!');
       console.log('Logo update successful');
     } catch (err) {
       console.error('Error uploading logo:', err);
-      alert('Failed to upload logo: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      setModalTitle('Upload Failed');
+      setModalMessage('Failed to upload logo: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      setShowErrorModal(true);
     } finally {
       setUploadingLogo(false);
       e.target.value = '';
@@ -525,10 +603,11 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
       const currentGallery = business.gallery || [];
       const newImages: string[] = [];
       
+      let skippedFiles = 0;
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         if (file.size > 5 * 1024 * 1024) {
-          alert(`${file.name} is too large. Maximum size is 5MB`);
+          skippedFiles++;
           continue;
         }
         const base64 = await optimizeImage(file, 'GALLERY');
@@ -536,11 +615,18 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
       }
       
       if (newImages.length > 0) {
-        await saveBusinessUpdate({ gallery: [...currentGallery, ...newImages] });
+        await saveBusinessUpdate({ gallery: [...currentGallery, ...newImages] }, `Successfully uploaded ${newImages.length} photo${newImages.length > 1 ? 's' : ''}!`);
+      }
+      if (skippedFiles > 0) {
+        setModalTitle('Some Files Skipped');
+        setModalMessage(`${skippedFiles} file${skippedFiles > 1 ? 's were' : ' was'} too large. Maximum size is 5MB per file.`);
+        setShowErrorModal(true);
       }
     } catch (err) {
       console.error('Error uploading gallery:', err);
-      alert('Failed to upload gallery images');
+      setModalTitle('Upload Failed');
+      setModalMessage('Failed to upload gallery images');
+      setShowErrorModal(true);
     } finally {
       setGalleryUploading(false);
       e.target.value = '';
@@ -592,25 +678,32 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
   }, [galleryModalOpen, business?.gallery]);
 
   // Handle gallery image deletion
-  const handleDeleteGalleryImage = async (index: number) => {
+  const handleDeleteGalleryImage = (index: number) => {
     if (!business || !canEdit) return;
-    
-    if (!confirm('Delete this photo?')) return;
-    
-    try {
-      const currentGallery = business.gallery || [];
-      const newGallery = currentGallery.filter((_, i) => i !== index);
-      await saveBusinessUpdate({ gallery: newGallery });
-    } catch (err) {
-      console.error('Error deleting gallery image:', err);
-      alert('Failed to delete photo');
-    }
+    setDeleteImageIndex(index);
+    setModalTitle('Delete Photo');
+    setModalMessage('Are you sure you want to delete this photo? This action cannot be undone.');
+    setConfirmAction(() => async () => {
+      try {
+        const currentGallery = business.gallery || [];
+        const newGallery = currentGallery.filter((_, i) => i !== index);
+        await saveBusinessUpdate({ gallery: newGallery }, 'Photo deleted successfully!');
+        setDeleteImageIndex(null);
+      } catch (err) {
+        console.error('Error deleting gallery image:', err);
+        setModalTitle('Delete Failed');
+        setModalMessage('Failed to delete photo');
+        setShowErrorModal(true);
+        setDeleteImageIndex(null);
+      }
+    });
+    setShowConfirmModal(true);
   };
 
   // Save description
   const handleSaveDescription = async () => {
     if (!business) return;
-    await saveBusinessUpdate({ description: editDescription });
+    await saveBusinessUpdate({ description: editDescription }, 'Description updated successfully!');
   };
 
   // Handle map location selection
@@ -632,7 +725,7 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
     await saveBusinessUpdate({ 
       contactInfo: contactInfoString,
       socials: socialsObj
-    });
+    }, 'Contact information updated successfully!');
   };
 
   // Save location
@@ -643,7 +736,7 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
       location: editLocation.trim() || business.location,
       lat: editLat,
       lng: editLng
-    });
+    }, 'Location updated successfully!');
   };
 
   // Save store hours
@@ -654,7 +747,17 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
       ? JSON.stringify(editStoreHours) 
       : null;
     
-    await saveBusinessUpdate({ openTime: storeHoursString });
+    await saveBusinessUpdate({ openTime: storeHoursString }, 'Store hours updated successfully!');
+  };
+
+  // Save basic info (category and barangay)
+  const handleSaveBasicInfo = async () => {
+    if (!business) return;
+    
+    await saveBusinessUpdate({ 
+      category: editCategory,
+      barangay: editBarangay
+    }, 'Basic information updated successfully!');
   };
 
   const formatDate = (dateString: string | Date): string => {
@@ -1060,6 +1163,94 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 md:px-8 py-6 sm:py-8 md:py-10">
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
           <div className="flex-1 w-full">
+          {/* Basic Information Section - Only visible when page is in edit mode */}
+          {canEdit && (
+            <div className="bg-[#2a2a2a] rounded-[20px] p-4 sm:p-6 mb-6 shadow-[0_8px_30px_rgba(0,0,0,0.4)] border border-white/5">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-2">
+                <h2 className="text-xl sm:text-2xl font-bold text-white">Basic Information</h2>
+                {editingSection !== 'basicInfo' && (
+                  <button 
+                    className="flex items-center gap-1.5 text-xs sm:text-sm text-[#6ab8d8] hover:text-[#8bc5d9] cursor-pointer transition-colors self-start sm:self-auto" 
+                    onClick={() => startEditing('basicInfo')}
+                  >
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                      <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                    </svg>
+                    Edit
+                  </button>
+                )}
+              </div>
+              {editingSection === 'basicInfo' ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="editCategory" className="block text-sm font-medium text-white/80 mb-2">
+                        Category <span className="text-red-400">*</span>
+                      </label>
+                      <select
+                        id="editCategory"
+                        value={editCategory}
+                        onChange={(e) => setEditCategory(e.target.value)}
+                        required
+                        className="w-full px-4 py-3 bg-[#1a1a1a] border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#6ab8d8] transition-colors"
+                      >
+                        <option value="">Select category</option>
+                        {CATEGORY_LIST.map(cat => (
+                          <option key={cat.value} value={cat.value}>{cat.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label htmlFor="editBarangay" className="block text-sm font-medium text-white/80 mb-2">
+                        Barangay <span className="text-red-400">*</span>
+                      </label>
+                      <select
+                        id="editBarangay"
+                        value={editBarangay}
+                        onChange={(e) => setEditBarangay(e.target.value)}
+                        required
+                        className="w-full px-4 py-3 bg-[#1a1a1a] border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#6ab8d8] transition-colors"
+                      >
+                        <option value="">Select barangay</option>
+                        {BARANGAYS.map(barangay => (
+                          <option key={barangay} value={barangay}>{barangay}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSaveBasicInfo}
+                      disabled={saving || !editCategory || !editBarangay}
+                      className="px-4 py-2 bg-[#6ab8d8] text-white rounded-lg font-medium hover:bg-[#5aa8c8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {saving ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                      onClick={cancelEditing}
+                      disabled={saving}
+                      className="px-4 py-2 bg-[#2a2a2a] border border-white/10 text-white rounded-lg font-medium hover:bg-[#1a1a1a] transition-colors disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs font-medium text-white/60 mb-1">Category</p>
+                    <p className="text-sm text-white">{business.category}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-white/60 mb-1">Barangay</p>
+                    <p className="text-sm text-white">{business.barangay}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* About Section */}
           <div className="bg-[#2a2a2a] rounded-[20px] p-4 sm:p-6 mb-6 shadow-[0_8px_30px_rgba(0,0,0,0.4)] border border-white/5">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-2">
@@ -1648,7 +1839,7 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
       </div>
 
       {/* Discussions Section - Separate container at bottom */}
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 md:px-8 pb-6 sm:pb-8 md:pb-10">
+      <div id="discussions" className="max-w-[1200px] mx-auto px-4 sm:px-6 md:px-8 pb-6 sm:pb-8 md:pb-10">
         <div className="bg-[#2a2a2a] rounded-[20px] p-4 sm:p-6 shadow-[0_8px_30px_rgba(0,0,0,0.4)] border border-white/5 overflow-x-auto">
           <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6">Community Discussions</h2>
           
@@ -1911,6 +2102,44 @@ export default function BusinessProfile({ businessId, readOnly = false }: Busine
           </div>
         </div>
       )}
+
+      {/* Success Modal */}
+      <SuccessModal
+        isOpen={showSuccessModal}
+        title={modalTitle}
+        message={modalMessage}
+        onClose={() => setShowSuccessModal(false)}
+      />
+
+      {/* Error Modal */}
+      <ErrorModal
+        isOpen={showErrorModal}
+        title={modalTitle}
+        message={modalMessage}
+        onClose={() => setShowErrorModal(false)}
+      />
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        title={modalTitle}
+        message={modalMessage}
+        confirmText="Confirm"
+        cancelText="Cancel"
+        confirmButtonStyle="danger"
+        onConfirm={() => {
+          if (confirmAction) {
+            confirmAction();
+          }
+          setShowConfirmModal(false);
+          setConfirmAction(null);
+        }}
+        onCancel={() => {
+          setShowConfirmModal(false);
+          setConfirmAction(null);
+          setDeleteImageIndex(null);
+        }}
+      />
     </div>
   );
 }

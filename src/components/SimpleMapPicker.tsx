@@ -93,7 +93,7 @@ export default function SimpleMapPicker({
       startLng = lng;
     }
 
-    // Create Map
+    // Create the Leaflet Map
     const map = window.L.map(mapRef.current, {
       center: [startLat, startLng],
       zoom: 14, // Slightly closer zoom for Cordova town proper
@@ -103,6 +103,7 @@ export default function SimpleMapPicker({
       maxBoundsViscosity: 1.0,
     });
 
+    // this adds the tile
     window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors',
     }).addTo(map);

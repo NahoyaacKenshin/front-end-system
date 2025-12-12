@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { api } from '../../src/services/api';
 import type { Business, Discussion } from '../../src/types';
+import SuccessModal from '../../src/components/SuccessModal';
+import ErrorModal from '../../src/components/ErrorModal';
+import ConfirmationModal from '../../src/components/ConfirmationModal';
 
 interface Stat {
   id: number;
@@ -31,6 +34,15 @@ export default function DashboardPage() {
   const [deletingBusiness, setDeletingBusiness] = useState<number | null>(null);
   const router = useRouter();
   const { user, logout, isLoading } = useAuth();
+  
+  // Modal states
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
+  const [modalTitle, setModalTitle] = useState('');
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
+  const [businessToDelete, setBusinessToDelete] = useState<{ id: number; name: string } | null>(null);
   
   // Get user's name from auth context, fallback to 'User' if not available
 const rawName = user?.name || 'User';
@@ -158,73 +170,84 @@ const userName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
     router.push(`/business/${businessId}`);
   };
 
-  const handleDeleteBusiness = async (businessId: number) => {
+  const handleDeleteBusiness = (businessId: number) => {
     const business = businesses.find(b => b.id === businessId);
     const businessName = business?.name || 'this business';
     
-    if (!confirm(`Are you sure you want to delete "${businessName}"? This action cannot be undone.`)) {
-      return;
-    }
-
-    try {
-      setDeletingBusiness(businessId);
-      
-      const response = await api.deleteBusiness(businessId);
-      
-      if (response.success) {
-        // Optimistic update: Remove from UI immediately so we don't need to reload everything
-        const updatedBusinesses = businesses.filter(b => b.id !== businessId);
-        setBusinesses(updatedBusinesses);
+    setBusinessToDelete({ id: businessId, name: businessName });
+    setModalTitle('Delete Business');
+    setModalMessage(`Are you sure you want to delete "${businessName}"? This action cannot be undone.`);
+    setConfirmAction(() => async () => {
+      try {
+        setDeletingBusiness(businessId);
         
-        // We can just subtract from the stats roughly to avoid a full reload, 
-        // OR trigger a reload. Since you want it fast, let's trigger a reload but 
-        // the reload is now optimized.
+        const response = await api.deleteBusiness(businessId);
         
-        // Note: For a true instant feel, you would manually update the stats state here 
-        // by subtracting the deleted business's counts, but that requires storing per-business stats.
-        // For now, I'll trigger the standard reload which is now much faster.
-        
-        const businessesResponse = await api.getMyBusinesses();
-        const userBusinesses = businessesResponse.data?.businesses || [];
-        setBusinesses(userBusinesses);
+        if (response.success) {
+          // Optimistic update: Remove from UI immediately so we don't need to reload everything
+          const updatedBusinesses = businesses.filter(b => b.id !== businessId);
+          setBusinesses(updatedBusinesses);
+          
+          // We can just subtract from the stats roughly to avoid a full reload, 
+          // OR trigger a reload. Since you want it fast, let's trigger a reload but 
+          // the reload is now optimized.
+          
+          // Note: For a true instant feel, you would manually update the stats state here 
+          // by subtracting the deleted business's counts, but that requires storing per-business stats.
+          // For now, I'll trigger the standard reload which is now much faster.
+          
+          const businessesResponse = await api.getMyBusinesses();
+          const userBusinesses = businessesResponse.data?.businesses || [];
+          setBusinesses(userBusinesses);
 
-        // Recalculate stats (Using the optimized logic)
-        const businessDetailsPromises = userBusinesses.map(async (business: Business) => {
-            try {
-              const [favoriteResponse, discussionsResponse] = await Promise.all([
-                api.getBusinessFavoriteCount(business.id),
-                api.getBusinessDiscussions(business.id)
-              ]);
-              return {
-                favorites: favoriteResponse.data?.count || 0,
-                discussions: Array.isArray(discussionsResponse.data) ? discussionsResponse.data : []
-              };
-            } catch (error) {
-              return { favorites: 0, discussions: [] };
-            }
-        });
+          // Recalculate stats (Using the optimized logic)
+          const businessDetailsPromises = userBusinesses.map(async (business: Business) => {
+              try {
+                const [favoriteResponse, discussionsResponse] = await Promise.all([
+                  api.getBusinessFavoriteCount(business.id),
+                  api.getBusinessDiscussions(business.id)
+                ]);
+                return {
+                  favorites: favoriteResponse.data?.count || 0,
+                  discussions: Array.isArray(discussionsResponse.data) ? discussionsResponse.data : []
+                };
+              } catch (error) {
+                return { favorites: 0, discussions: [] };
+              }
+          });
 
-        const results = await Promise.all(businessDetailsPromises);
-        const totalFavorites = results.reduce((sum, item) => sum + item.favorites, 0);
-        const totalDiscussions = results.reduce((sum, item) => sum + item.discussions.length, 0);
+          const results = await Promise.all(businessDetailsPromises);
+          const totalFavorites = results.reduce((sum, item) => sum + item.favorites, 0);
+          const totalDiscussions = results.reduce((sum, item) => sum + item.discussions.length, 0);
 
-        // Update stats
-        setStats(prevStats => [
-          { ...prevStats[0], value: userBusinesses.length },
-          { ...prevStats[1], value: totalFavorites },
-          { ...prevStats[2], value: totalDiscussions }
-        ]);
+          // Update stats
+          setStats(prevStats => [
+            { ...prevStats[0], value: userBusinesses.length },
+            { ...prevStats[1], value: totalFavorites },
+            { ...prevStats[2], value: totalDiscussions }
+          ]);
 
-        alert('Business deleted successfully');
-      } else {
-        alert(response.message || 'Failed to delete business');
+          setModalTitle('Success');
+          setModalMessage('Business deleted successfully!');
+          setShowSuccessModal(true);
+          setBusinessToDelete(null);
+        } else {
+          setModalTitle('Error');
+          setModalMessage(response.message || 'Failed to delete business');
+          setShowErrorModal(true);
+          setBusinessToDelete(null);
+        }
+      } catch (err: any) {
+        console.error('Error deleting business:', err);
+        setModalTitle('Error');
+        setModalMessage(err.response?.data?.message || err.message || 'Failed to delete business');
+        setShowErrorModal(true);
+        setBusinessToDelete(null);
+      } finally {
+        setDeletingBusiness(null);
       }
-    } catch (err: any) {
-      console.error('Error deleting business:', err);
-      alert(err.response?.data?.message || err.message || 'Failed to delete business');
-    } finally {
-      setDeletingBusiness(null);
-    }
+    });
+    setShowConfirmModal(true);
   };
 
   const handleLogout = () => {
@@ -401,7 +424,18 @@ const userName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
                       <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 min-w-0">
                         <span className="font-semibold text-white text-sm sm:text-base break-words">{discussion.user.name}</span>
                         <span className="text-xs sm:text-sm text-white/60">on</span>
-                        <span className="font-medium text-[#6ab8d8] text-sm sm:text-base break-words">{discussion.business?.name || 'Business'}</span>
+                        <button
+                          onClick={() => {
+                            const businessId = discussion.businessId || discussion.business?.id;
+                            if (businessId) {
+                              router.push(`/business/${businessId}#discussions`);
+                            }
+                          }}
+                          className="font-medium text-[#6ab8d8] hover:text-[#8bc5d9] text-sm sm:text-base break-words transition-colors cursor-pointer hover:underline"
+                          title={`View ${discussion.business?.name || 'business'} page`}
+                        >
+                          {discussion.business?.name || 'Business'}
+                        </button>
                       </div>
                       <span className="text-xs sm:text-sm text-white/60 whitespace-nowrap">{formatDate(discussion.createdAt)}</span>
                     </div>
@@ -413,6 +447,44 @@ const userName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
           )}
         </div>
       </div>
+
+      {/* Success Modal */}
+      <SuccessModal
+        isOpen={showSuccessModal}
+        title={modalTitle}
+        message={modalMessage}
+        onClose={() => setShowSuccessModal(false)}
+      />
+
+      {/* Error Modal */}
+      <ErrorModal
+        isOpen={showErrorModal}
+        title={modalTitle}
+        message={modalMessage}
+        onClose={() => setShowErrorModal(false)}
+      />
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        title={modalTitle}
+        message={modalMessage}
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmButtonStyle="danger"
+        onConfirm={() => {
+          if (confirmAction) {
+            confirmAction();
+          }
+          setShowConfirmModal(false);
+          setConfirmAction(null);
+        }}
+        onCancel={() => {
+          setShowConfirmModal(false);
+          setConfirmAction(null);
+          setBusinessToDelete(null);
+        }}
+      />
     </div>
   );
 }

@@ -6,6 +6,9 @@ import { useAuth } from '../../src/contexts/AuthContext';
 import { api } from '../../src/services/api';
 import type { Business } from '../../src/types';
 import Navbar from '../../src/components/Layout/Navbar';
+import SuccessModal from '../../src/components/SuccessModal';
+import ErrorModal from '../../src/components/ErrorModal';
+import ConfirmationModal from '../../src/components/ConfirmationModal';
 
 interface VerificationStatus {
   id: number;
@@ -28,6 +31,15 @@ export default function MyBusinessesPage() {
   const [favoriteCounts, setFavoriteCounts] = useState<Map<number, number>>(new Map());
   const router = useRouter();
   const { user, isLoading } = useAuth();
+  
+  // Modal states
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
+  const [modalTitle, setModalTitle] = useState('');
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
+  const [businessToDelete, setBusinessToDelete] = useState<{ id: number; name: string } | null>(null);
 
   useEffect(() => {
     // Wait for auth to finish loading before checking user
@@ -147,33 +159,44 @@ export default function MyBusinessesPage() {
     router.push(`/business/${id}`);
     };
 
-  const handleDeleteBusiness = async (businessId: number) => {
+  const handleDeleteBusiness = (businessId: number) => {
     const business = businesses.find(b => b.id === businessId);
     const businessName = business?.name || 'this business';
     
-    if (!confirm(`Are you sure you want to delete "${businessName}"? This action cannot be undone.`)) {
-      return;
-    }
-
-    try {
-      setDeletingBusiness(businessId);
-      setError(null);
-      
-      const response = await api.deleteBusiness(businessId);
-      
-      if (response.success) {
-        // Remove the business from the list
-        setBusinesses(prev => prev.filter(b => b.id !== businessId));
-        alert('Business deleted successfully');
-      } else {
-        setError(response.message || 'Failed to delete business');
+    setBusinessToDelete({ id: businessId, name: businessName });
+    setModalTitle('Delete Business');
+    setModalMessage(`Are you sure you want to delete "${businessName}"? This action cannot be undone.`);
+    setConfirmAction(() => async () => {
+      try {
+        setDeletingBusiness(businessId);
+        setError(null);
+        
+        const response = await api.deleteBusiness(businessId);
+        
+        if (response.success) {
+          // Remove the business from the list
+          setBusinesses(prev => prev.filter(b => b.id !== businessId));
+          setModalTitle('Success');
+          setModalMessage('Business deleted successfully!');
+          setShowSuccessModal(true);
+          setBusinessToDelete(null);
+        } else {
+          setModalTitle('Error');
+          setModalMessage(response.message || 'Failed to delete business');
+          setShowErrorModal(true);
+          setBusinessToDelete(null);
+        }
+      } catch (err: any) {
+        console.error('Error deleting business:', err);
+        setModalTitle('Error');
+        setModalMessage(err.response?.data?.message || err.message || 'Failed to delete business');
+        setShowErrorModal(true);
+        setBusinessToDelete(null);
+      } finally {
+        setDeletingBusiness(null);
       }
-    } catch (err: any) {
-      console.error('Error deleting business:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to delete business');
-    } finally {
-      setDeletingBusiness(null);
-    }
+    });
+    setShowConfirmModal(true);
   };
 
 
@@ -354,6 +377,44 @@ export default function MyBusinessesPage() {
           </div>
         )}
       </div>
+
+      {/* Success Modal */}
+      <SuccessModal
+        isOpen={showSuccessModal}
+        title={modalTitle}
+        message={modalMessage}
+        onClose={() => setShowSuccessModal(false)}
+      />
+
+      {/* Error Modal */}
+      <ErrorModal
+        isOpen={showErrorModal}
+        title={modalTitle}
+        message={modalMessage}
+        onClose={() => setShowErrorModal(false)}
+      />
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        title={modalTitle}
+        message={modalMessage}
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmButtonStyle="danger"
+        onConfirm={() => {
+          if (confirmAction) {
+            confirmAction();
+          }
+          setShowConfirmModal(false);
+          setConfirmAction(null);
+        }}
+        onCancel={() => {
+          setShowConfirmModal(false);
+          setConfirmAction(null);
+          setBusinessToDelete(null);
+        }}
+      />
     </div>
   );
 }

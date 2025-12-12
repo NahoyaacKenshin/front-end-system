@@ -6,6 +6,9 @@ import { useAuth } from '../../src/contexts/AuthContext';
 import { api } from '../../src/services/api';
 import Navbar from '../../src/components/Layout/Navbar';
 import type { Business, Favorite } from '../../src/types';
+import SuccessModal from '../../src/components/SuccessModal';
+import ErrorModal from '../../src/components/ErrorModal';
+import ConfirmationModal from '../../src/components/ConfirmationModal';
 
 interface FavoriteWithBusiness extends Favorite {
   business: Business;
@@ -18,6 +21,15 @@ export default function FavoritesPage() {
   const [removingFavorite, setRemovingFavorite] = useState<number | null>(null);
   const router = useRouter();
   const { user, isLoading } = useAuth();
+  
+  // Modal states
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
+  const [modalTitle, setModalTitle] = useState('');
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
+  const [favoriteToRemove, setFavoriteToRemove] = useState<{ id: number; name: string } | null>(null);
 
   useEffect(() => {
     // Wait for auth to finish loading before checking user
@@ -52,32 +64,44 @@ export default function FavoritesPage() {
     }
   };
 
-  const handleRemoveFavorite = async (businessId: number) => {
+  const handleRemoveFavorite = (businessId: number) => {
     const business = favorites.find(f => f.businessId === businessId)?.business;
     const businessName = business?.name || 'this business';
     
-    if (!confirm(`Are you sure you want to remove "${businessName}" from your favorites?`)) {
-      return;
-    }
-
-    try {
-      setRemovingFavorite(businessId);
-      setError(null);
-      
-      const response = await api.removeFavorite(businessId);
-      
-      if (response.success) {
-        // Remove the favorite from the list
-        setFavorites(prev => prev.filter(f => f.businessId !== businessId));
-      } else {
-        setError(response.message || 'Failed to remove favorite');
+    setFavoriteToRemove({ id: businessId, name: businessName });
+    setModalTitle('Remove Favorite');
+    setModalMessage(`Are you sure you want to remove "${businessName}" from your favorites?`);
+    setConfirmAction(() => async () => {
+      try {
+        setRemovingFavorite(businessId);
+        setError(null);
+        
+        const response = await api.removeFavorite(businessId);
+        
+        if (response.success) {
+          // Remove the favorite from the list
+          setFavorites(prev => prev.filter(f => f.businessId !== businessId));
+          setModalTitle('Success');
+          setModalMessage(`"${businessName}" has been removed from your favorites.`);
+          setShowSuccessModal(true);
+          setFavoriteToRemove(null);
+        } else {
+          setModalTitle('Error');
+          setModalMessage(response.message || 'Failed to remove favorite');
+          setShowErrorModal(true);
+          setFavoriteToRemove(null);
+        }
+      } catch (err: any) {
+        console.error('Error removing favorite:', err);
+        setModalTitle('Error');
+        setModalMessage(err.response?.data?.message || err.message || 'Failed to remove favorite');
+        setShowErrorModal(true);
+        setFavoriteToRemove(null);
+      } finally {
+        setRemovingFavorite(null);
       }
-    } catch (err: any) {
-      console.error('Error removing favorite:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to remove favorite');
-    } finally {
-      setRemovingFavorite(null);
-    }
+    });
+    setShowConfirmModal(true);
   };
 
   const handleViewBusiness = (businessId: number) => {
@@ -219,6 +243,44 @@ export default function FavoritesPage() {
           </div>
         )}
       </div>
+
+      {/* Success Modal */}
+      <SuccessModal
+        isOpen={showSuccessModal}
+        title={modalTitle}
+        message={modalMessage}
+        onClose={() => setShowSuccessModal(false)}
+      />
+
+      {/* Error Modal */}
+      <ErrorModal
+        isOpen={showErrorModal}
+        title={modalTitle}
+        message={modalMessage}
+        onClose={() => setShowErrorModal(false)}
+      />
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        title={modalTitle}
+        message={modalMessage}
+        confirmText="Remove"
+        cancelText="Cancel"
+        confirmButtonStyle="danger"
+        onConfirm={() => {
+          if (confirmAction) {
+            confirmAction();
+          }
+          setShowConfirmModal(false);
+          setConfirmAction(null);
+        }}
+        onCancel={() => {
+          setShowConfirmModal(false);
+          setConfirmAction(null);
+          setFavoriteToRemove(null);
+        }}
+      />
     </div>
   );
 }
