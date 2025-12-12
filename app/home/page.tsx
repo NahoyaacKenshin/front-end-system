@@ -285,7 +285,7 @@ export default function HomePage() {
 
       <div ref={sectionRef} id="category-section" className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 md:px-8 lg:px-[60px] bg-[#1a1a1a] flex-1">
         <div className={`mb-12 pb-5 border-b border-gray-700 transition-all duration-800 ${visibleElements.has('category-section') ? 'animate-fade-in-up opacity-100' : 'opacity-0'}`} style={{ animationDelay: '0.2s' }}>
-          <h2 className="text-white text-4xl sm:text-2xl font-bold tracking-[2px]">EXPLORE BY CATEGORY</h2>
+          <h2 className="text-white text-4xl sm:text-2xl font-bold tracking-[2px]">BROWSE BY CATEGORY</h2>
           <p className="text-white/80 text-xl mt-2 font-light">Discover the best of Cordova through our curated categories</p>
         </div>
 
