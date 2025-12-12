@@ -485,6 +485,10 @@ const userName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
           setBusinessToDelete(null);
         }}
       />
+
+      <footer className="bg-[#0a0a0a] mt-[30px] py-[30px] px-5 text-center">
+        <p className="text-white/70 text-sm">©2025 Locafy. All Rights Reserved</p>
+      </footer>
     </div>
   );
 }

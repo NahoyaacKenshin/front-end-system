@@ -966,7 +966,7 @@ function BusinessesContent() {
                     Previous
                   </button>
                   
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2 justify-center">
                     {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                       <button
                         key={page}
@@ -995,6 +995,10 @@ function BusinessesContent() {
           )}
         </div>
       </div>
+
+      <footer className="bg-[#0a0a0a] mt-[30px] py-[30px] px-5 text-center">
+        <p className="text-white/70 text-sm">©2025 Locafy. All Rights Reserved</p>
+      </footer>
     </div>
   );
 }
